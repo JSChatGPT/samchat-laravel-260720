@@ -1,0 +1,142 @@
+# Samchats API Documentation - New Chat & Contacts
+
+This document details the API endpoints needed to implement the "Start New Chat" search functionality and the "Address Book / Saved Contacts" feature on the mobile app.
+
+All endpoints require Sanctum Bearer Token authentication (`Authorization: Bearer <token>`).
+
+## 1. Start New Chat Search
+
+When a user taps "New Chat" and begins typing a username or phone number, query this endpoint to find users.
+
+### Endpoint: `GET /api/users/search`
+
+#### Query Parameters:
+- `q` (string, optional): The search term (can be username or phone number). 
+  - If `q` is omitted or empty, it returns the first 50 users on the platform.
+  - If `q` is provided, it searches for partial matches on `username` or `phone_number` and returns up to 20 users.
+
+#### Response Security Note:
+**Phone numbers are strictly excluded from the JSON response for privacy reasons.** Even if a user searches by a friend's exact phone number to find them, the API will only return the user's name and username.
+
+#### Success Response (200 OK)
+```json
+{
+    "users": [
+        {
+            "id": "uuid-string",
+            "first_name": "John",
+            "last_name": "Doe",
+            "username": "johndoe",
+            "about_status": "Available",
+            "photo_url": "https://...",
+            "saved_name": "My Best Friend" // ONLY present if the user has saved them as a contact, otherwise null
+        }
+    ]
+}
+```
+
+---
+
+## 2. Start a Chat
+
+Once a user selects a contact from the search results, query this endpoint to start a direct message (DM) chat with them, or retrieve the existing chat if they have spoken before.
+
+### Endpoint: `POST /api/chats`
+
+#### Payload (JSON)
+```json
+{
+    "user_id": "uuid-of-the-target-user"
+}
+```
+
+#### Success Response (201 Created or 200 OK)
+Returns the chat object. If a chat already exists, it returns the existing chat (200 OK). If not, it creates a new one (201 Created).
+```json
+{
+    "chat": {
+        "id": "chat-uuid",
+        "chat_type": "direct",
+        "created_at": "...",
+        "updated_at": "..."
+    }
+}
+```
+
+---
+
+## 3. Address Book / Saved Contacts
+
+These endpoints allow a user to maintain a personal list of "Saved Contacts" from the Samchats platform, assigning them custom display names just like WhatsApp or Telegram.
+
+### 3.1 Fetch All Saved Contacts
+Retrieve all contacts the authenticated user has saved.
+**Endpoint:** `GET /api/contacts`
+
+#### Success Response (200 OK)
+```json
+{
+    "contacts": [
+        {
+            "id": 1,
+            "user_id": "my-uuid",
+            "contact_user_id": "friend-uuid",
+            "custom_name": "Mom",
+            "created_at": "...",
+            "contact_user": {
+                "id": "friend-uuid",
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "username": "janed",
+                "photo_url": "...",
+                "about_status": "..."
+            }
+        }
+    ]
+}
+```
+
+### 2.2 Add / Update a Contact
+Adds a user to your contacts list with a custom name. If they are already in the list, it updates their custom name.
+**Endpoint:** `POST /api/contacts`
+
+#### Payload (JSON)
+```json
+{
+    "contact_user_id": "uuid-of-the-user",
+    "custom_name": "My Best Friend"
+}
+```
+
+#### Success Response (201 Created)
+Returns the created/updated contact object (same schema as GET response).
+
+### 2.3 Edit Contact Name
+Update the custom name for an existing contact record (requires the specific contact ID, not the user_id).
+**Endpoint:** `PUT /api/contacts/{id}`
+
+#### Payload (JSON)
+```json
+{
+    "custom_name": "New Name"
+}
+```
+
+### 2.4 Delete a Contact
+Removes a saved contact.
+**Endpoint:** `DELETE /api/contacts/{id}`
+
+#### Success Response (200 OK)
+```json
+{
+    "status": "success",
+    "message": "Contact removed"
+}
+```
+
+## 4. Implementation Guide for Mobile
+1. On app load, you can fetch `GET /api/contacts` and store the `contact_user_id` -> `custom_name` mapping in memory/local DB, OR you can rely on the backend automatically returning `saved_name`.
+2. **Backend Automatic Injection**: Both the `GET /api/users/search` and `GET /api/chats` (inbox list) endpoints automatically attach a `saved_name` field to user objects if the current authenticated user has saved them as a contact.
+3. Whenever displaying a user's name (in the chat list, in a message bubble, or in the chat header), check if `saved_name` is present and not null.
+4. If it exists, display their `saved_name`.
+5. If it does not exist, fall back to `first_name` + `last_name`, or `username`.

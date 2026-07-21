@@ -1,0 +1,88 @@
+# Samchats API Documentation - Filters and Statuses
+
+This document outlines the API endpoints for filtering chats and posting statuses, specifically designed for mobile application integration. All endpoints require a valid Sanctum authentication token (Bearer token).
+
+## 1. Chat Filtering Endpoints
+
+The API supports filtering and searching chats directly from the backend, reducing the need for client-side filtering on mobile devices.
+
+### Endpoint: `GET /api/chats`
+
+Fetches the user's inbox chats. It accepts optional query parameters to filter or search the results.
+
+#### Query Parameters
+- `filter` (string, optional): 
+  - `unread`: Returns only chats where the authenticated user has unread messages (`unread_count > 0`).
+  - `groups`: Returns only group chats (`chat_type = 'group'`).
+- `search` (string, optional): 
+  - Returns chats where the group name or any participant's first name, last name, or username matches the search keyword.
+
+#### Examples:
+
+**1. Get all chats (Default Inbox)**
+`GET /api/chats`
+
+**2. Get only unread chats**
+`GET /api/chats?filter=unread`
+
+**3. Get only group chats**
+`GET /api/chats?filter=groups`
+
+**4. Search for a specific user or group**
+`GET /api/chats?search=john`
+
+**5. Combine search and filters**
+`GET /api/chats?filter=unread&search=john`
+
+---
+
+## 2. Status Posting Endpoints
+
+The API supports posting Text, Image, and Video statuses seamlessly using `multipart/form-data`. The backend automatically categorizes image/video uploads based on MIME types.
+
+### Endpoint: `POST /api/statuses`
+
+Creates a new status update that expires automatically in 24 hours.
+
+#### Request Format
+You must use `multipart/form-data` to support file uploads.
+
+#### Payload Parameters:
+- `type` (string, required): The type of status. Valid options: `text`, `image`, `video`.
+- `content` (string, optional): For `text` statuses, this contains the text. For media statuses, it can optionally be used as a caption.
+- `media` (file, optional): The image or video file. Required if `type` is `image` or `video`.
+  - Max size: 50MB.
+  - Allowed types: `jpeg`, `png`, `jpg`, `gif`, `mp4`, `mov`, `webm`.
+- `background_color` (string, optional): Hex color code for the background (mostly used for text statuses).
+
+#### Examples:
+
+**1. Posting a Text Status**
+```http
+POST /api/statuses
+Content-Type: multipart/form-data
+
+type="text"
+content="Having a great day!"
+background_color="#FF5722"
+```
+
+**2. Posting an Image Status**
+```http
+POST /api/statuses
+Content-Type: multipart/form-data
+
+type="image"
+media="<binary_image_file.jpg>"
+```
+
+**3. Posting a Video Status**
+```http
+POST /api/statuses
+Content-Type: multipart/form-data
+
+type="video"
+media="<binary_video_file.mp4>"
+```
+
+*(Note: Videos are automatically given a 15-second duration, while images and text receive a 5-second duration in the backend model logic).*

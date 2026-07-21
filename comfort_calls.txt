@@ -1,0 +1,81 @@
+SAMCHATS CALLS - WEB UNDERSTANDING + FLUTTER API (BRIEF)
+
+1) How calls currently work on web
+- Media (audio/video) is WebRTC peer-to-peer. Laravel does not carry media packets.
+- Laravel manages call state and signaling only.
+- Call lifecycle:
+  - POST /api/calls creates call with status=missed by default.
+  - POST /api/calls/{call_id}/accept sets status=answered and started_at.
+  - POST /api/calls/{call_id}/decline sets status=rejected and ended_at (direct calls).
+  - POST /api/calls/{call_id}/end sets ended_at and duration_seconds.
+- Realtime events used by web:
+  - private-user.{id}: IncomingCall, CallAnswered, CallDeclined
+  - private-call.{call_id}: client-user-joined, client-webrtc-signal
+- Signal relay endpoint:
+  - POST /api/calls/{call_id}/signal with signal_data object.
+
+2) New Flutter-focused endpoints added
+- GET /api/calls/active
+  - Returns calls visible to user where ended_at is null.
+  - Use for app resume/reconnect and active ringing screen recovery.
+
+- GET /api/calls/{call_id}
+  - Returns one call (with caller, receiver, chat/group, participants).
+  - Use to hydrate Flutter call UI after push/ring action.
+
+- POST /api/calls/{call_id}/join
+  - Sends a normalized join signal to private-call.{call_id}.
+  - Body (optional):
+    {
+      "target_id": "uuid",
+      "user_name": "string",
+      "user_photo": "string"
+    }
+
+- POST /api/calls/{call_id}/offer
+  - Body:
+    {
+      "offer": { ... },
+      "target_id": "uuid",
+      "sender_name": "string optional",
+      "sender_photo": "string optional"
+    }
+
+- POST /api/calls/{call_id}/answer
+  - Body:
+    {
+      "answer": { ... },
+      "target_id": "uuid",
+      "sender_name": "string optional",
+      "sender_photo": "string optional"
+    }
+
+- POST /api/calls/{call_id}/candidate
+  - Body:
+    {
+      "candidate": { ... },
+      "target_id": "uuid",
+      "sender_name": "string optional",
+      "sender_photo": "string optional"
+    }
+
+3) Recommended Flutter flow for seamless audio/video
+- Caller:
+  1. POST /api/calls
+  2. Subscribe private-call.{call_id}
+  3. Send offer(s) using /offer
+  4. Exchange ICE using /candidate
+
+- Callee:
+  1. Receive IncomingCall on private-user.{id}
+  2. POST /api/calls/{call_id}/accept
+  3. POST /api/calls/{call_id}/join when call screen opens
+  4. Receive offer via websocket, reply with /answer
+  5. Exchange ICE using /candidate
+
+- End:
+  - POST /api/calls/{call_id}/end
+
+4) Important network note for mobile
+- In .env, REVERB_HOST is currently localhost.
+- For real phone testing on LAN, use server IP instead of localhost (for example 192.168.x.x), otherwise Flutter device cannot reach websocket host.

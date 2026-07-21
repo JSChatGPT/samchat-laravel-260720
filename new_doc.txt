@@ -1,0 +1,93 @@
+# Building the "New Chat" Screen in Flutter (WhatsApp Style)
+
+This document provides a comprehensive guide for Flutter developers on how to recreate the exact "New Chat" screen experience seen in apps like WhatsApp, using the Samchats backend APIs.
+
+## The Goal
+When a user clicks "New Chat", they should see:
+1. **Contacts on Samchats**: People from their phonebook who are already registered on the app, plus any custom users they saved manually via their usernames.
+2. **Invite to Samchats**: People from their phonebook who are NOT registered yet.
+
+## Prerequisites
+The Flutter app needs a library to read native contacts (e.g., `flutter_contacts` or `contacts_service`).
+
+---
+
+## Step 1: Read Native Phone Contacts
+First, request permission and load the user's native contacts on the device.
+
+```dart
+import 'package:flutter_contacts/flutter_contacts.dart';
+
+List<Contact> phoneContacts = [];
+if (await FlutterContacts.requestPermission()) {
+  phoneContacts = await FlutterContacts.getContacts(withProperties: true);
+}
+```
+
+## Step 2: Sync with the Backend
+Send the phone numbers to the Samchats backend to find out who is registered. The backend will automatically save the matched users into the user's "My Contacts" database so their custom names appear universally across the app.
+
+**Endpoint:** `POST /api/contacts/sync`
+
+```dart
+// Convert Flutter contacts to the JSON payload required by the API
+List<Map<String, String>> syncPayload = phoneContacts.map((c) {
+  return {
+    "name": c.displayName,
+    "phone_number": c.phones.isNotEmpty ? c.phones.first.number : ""
+  };
+}).where((c) => c["phone_number"]!.isNotEmpty).toList();
+
+// Send to backend
+final response = await http.post(
+  Uri.parse('https://yourdomain.com/api/contacts/sync'),
+  headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+  body: jsonEncode({'contacts': syncPayload}),
+);
+```
+
+## Step 3: Fetch the Unified Contacts List
+Now that the backend is synced, fetch the complete list of "My Contacts". This API returns both the users synced from the phonebook AND any users the person saved manually via search.
+
+*Note: The backend has been updated to include `phone_number` in this payload so you can cross-reference it.*
+
+**Endpoint:** `GET /api/contacts`
+
+```dart
+final response = await http.get(
+  Uri.parse('https://yourdomain.com/api/contacts'),
+  headers: {'Authorization': 'Bearer $token'},
+);
+
+// This is your "Contacts on Samchats" list!
+List<dynamic> samchatContacts = jsonDecode(response.body)['contacts'];
+```
+
+## Step 4: Separate and Display the Two Lists
+Now, compare the raw `phoneContacts` list from Step 1 against the `samchatContacts` list from Step 3 using their phone numbers.
+
+```dart
+// 1. Create a Set of phone numbers that ARE on Samchats for fast lookup
+Set<String> registeredPhoneNumbers = samchatContacts
+    .map((c) => c['contact_user']['phone_number'].toString().replaceAll(RegExp(r'\D'), ''))
+    .toSet();
+
+// 2. Filter the native phone contacts to find those who are NOT on Samchats
+List<Contact> inviteList = phoneContacts.where((phoneContact) {
+    if (phoneContact.phones.isEmpty) return false;
+    
+    // Clean the phone number (remove spaces, dashes)
+    String cleanPhone = phoneContact.phones.first.number.replaceAll(RegExp(r'\D'), '');
+    
+    return !registeredPhoneNumbers.contains(cleanPhone);
+}).toList();
+```
+
+## Step 5: Render the UI
+You now have two distinct arrays of data:
+1. `samchatContacts`: Render these at the top under a "Contacts on Samchats" header. Clicking one opens a chat screen.
+2. `inviteList`: Render these below under an "Invite to Samchats" header. Clicking one opens an SMS invite sheet.
+
+### Why this architecture is best:
+- **Universal Names**: Because we use `POST /api/contacts/sync`, the backend stores the custom name. Now, if the user goes to the Call Log or Status feed, the backend will automatically inject the `saved_name`, requiring zero extra effort from the frontend!
+- **Data Privacy**: The backend only saves users who actually exist on the platform. Non-registered phone numbers are safely discarded and managed entirely locally by the Flutter app.

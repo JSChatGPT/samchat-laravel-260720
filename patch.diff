@@ -1,0 +1,39 @@
+--- resources/views/chat/index.blade.php
++++ resources/views/chat/index.blade.php
+@@ -355,14 +355,34 @@
+     <div class="profile-modal-card">
+         <h2 class="profile-modal-title">Edit Profile</h2>
+ 
+-        <div class="profile-form-group">
+-            <label class="profile-form-label">Your name</label>
++        <div class="profile-avatar-wrapper" style="text-align: center; margin-bottom: 24px; position: relative; width: 120px; height: 120px; margin-left: auto; margin-right: auto;">
++            <img id="profile-avatar-preview" src="" alt="Profile Picture" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent);">
++            <div class="profile-avatar-overlay" id="btn-change-avatar" style="position: absolute; bottom: 0; right: 0; background: var(--accent); color: white; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid var(--bg-panel);">
++                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M4 4h3l2-2h6l2 2h3c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM12 18c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0-8c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3z"></path></svg>
++            </div>
++            <input type="file" id="profile-photo-input" accept="image/*" style="display: none;">
++        </div>
++
++        <div style="display: flex; gap: 16px;">
++            <div class="profile-form-group" style="flex: 1;">
++                <label class="profile-form-label">First Name</label>
++                <input type="text" id="profile-first-name" class="profile-form-input">
++            </div>
++            <div class="profile-form-group" style="flex: 1;">
++                <label class="profile-form-label">Last Name</label>
++                <input type="text" id="profile-last-name" class="profile-form-input">
++            </div>
++        </div>
++
++        <div class="profile-form-group">
++            <label class="profile-form-label">Username</label>
+             <input type="text" id="profile-name" class="profile-form-input">
+         </div>
++        
++        <div class="profile-form-group">
++            <label class="profile-form-label">Email</label>
++            <input type="email" id="profile-email" class="profile-form-input">
++        </div>
+ 
+         <div class="profile-form-group">
+             <label class="profile-form-label">About</label>

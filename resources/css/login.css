@@ -1,0 +1,449 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+
+/* ===========================================
+   DESIGN TOKENS / CSS VARIABLES (Updated)
+   =========================================== */
+:root {
+    /* 1. Accent (Brand Colors) */
+    --primary-accent: #FF5722;
+    --accent-light: #FF8A65;
+    --accent-dark: #E64A19;
+    --accent-glow: rgba(255, 87, 34, 0.25);
+    --accent-subtle: rgba(255, 87, 34, 0.08);
+
+    /* 2. Status & System Colors */
+    --online-success: #22C55E;
+    --danger-error: #EF4444;
+    --msg-sent-tick-unread: rgba(100, 116, 139, 0.5);
+    --msg-read-tick-blue: #38BDF8;
+
+    /* 3. Typography (Text Colors) */
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+    --text-icon: #64748B;
+    --text-on-accent: #FFFFFF;
+    --typing-indicator: #FF5722;
+
+    /* 4. Message Bubbles */
+    --sent-bubble-gradient-start: #FF5722;
+    --sent-bubble-gradient-end: #FF8A65;
+    --received-bubble: #FFFFFF;
+
+    /* 5. Surfaces & Backgrounds */
+    --page-background: #F0F2F8;
+    --chat-background: #F8FAFC;
+    --panel-sidebar: rgba(255, 255, 255, 0.65);
+    --header-nav: #FF5722;
+    --search-bar: rgba(241, 245, 249, 0.8);
+    --input-fields: #FFFFFF;
+    --cards: rgba(255, 255, 255, 0.7);
+
+    /* 6. Borders & Dividers */
+    --border-line: rgba(0, 0, 0, 0.06);
+    --focus-border: rgba(255, 87, 34, 0.5);
+    
+    /* Additional Required Variables mapping */
+    --bg-overlay: rgba(255, 255, 255, 0.92);
+    --bg-dropdown: #ffffff;
+    --bg-modal-backdrop: rgba(248, 250, 252, 0.85);
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1);
+    --shadow-dropdown: 0 8px 30px rgba(0, 0, 0, 0.12);
+    --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.05);
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.25s ease;
+    --transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-full: 9999px;
+    
+    --bubble-shadow-sent: 0 4px 20px rgba(255, 87, 34, 0.2);
+    --bubble-shadow-received: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+
+
+/* ===========================================
+   DARK THEME
+   =========================================== */
+body.dark-theme {
+    --accent-glow: rgba(255, 87, 34, 0.30);
+    --accent-subtle: rgba(255, 87, 34, 0.12);
+
+    --msg-sent-tick-unread: rgba(255, 255, 255, 0.35);
+
+    --text-primary: #F1F5F9;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --text-icon: #94A3B8;
+    --typing-indicator: #FF8A65;
+
+    --received-bubble: rgba(30, 41, 59, 1.0);
+
+    --page-background: #020617;
+    --chat-background: #0B1120;
+    --panel-sidebar: rgba(15, 23, 42, 0.5);
+    --header-nav: #E64A19;
+    --search-bar: rgba(30, 41, 59, 0.6);
+    --input-fields: rgba(30, 41, 59, 0.8);
+    --cards: rgba(30, 41, 59, 0.5);
+
+    --border-line: rgba(255, 255, 255, 0.06);
+    --focus-border: rgba(255, 87, 34, 0.6);
+    
+    --bg-overlay: rgba(15, 23, 42, 0.95);
+    --bg-dropdown: #1e293b;
+    --bg-modal-backdrop: rgba(2, 6, 23, 0.85);
+    
+    --bubble-shadow-sent: 0 4px 20px rgba(255, 87, 34, 0.15);
+    --bubble-shadow-received: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ─── Minimal Background ─── */
+body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--page-background);
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+
+/* ─── Theme Toggle ─── */
+.theme-toggle-wrapper {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    z-index: 10;
+}
+
+.icon-action {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-line);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.icon-action:hover {
+    background: var(--input-fields);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+/* ─── Login card ─── */
+.login-container {
+    width: 100%;
+    max-width: 440px;
+    padding: 44px 40px 40px;
+    background: var(--panel-sidebar);
+    border: 1px solid var(--border-line);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    animation: cardEntry 0.5s ease both;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+@keyframes cardEntry {
+    0% {
+        opacity: 0;
+        transform: translateY(32px) scale(0.96);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ─── Logo area ─── */
+.login-logo {
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: center;
+    animation: logoEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+
+@keyframes logoEntry {
+    0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.login-logo .logo-icon {
+    width: 56px;
+    height: 56px;
+    filter: drop-shadow(0 4px 16px var(--accent-glow));
+}
+
+/* ─── Header ─── */
+.login-header {
+    animation: headerEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+
+@keyframes headerEntry {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-header h2 {
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 1.65rem;
+    letter-spacing: -0.02em;
+}
+
+.login-header p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 32px;
+    line-height: 1.5;
+    font-weight: 400;
+}
+
+/* ─── Form elements ─── */
+.form-group {
+    margin-bottom: 22px;
+    text-align: left;
+    animation: formEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both;
+}
+
+@keyframes formEntry {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.form-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid var(--border-line);
+    border-radius: 14px;
+    background: var(--input-fields);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.form-input::placeholder {
+    color: rgba(158, 154, 176, 0.6);
+}
+
+.form-input:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--panel-sidebar);
+}
+
+.form-input:focus {
+    border-color: var(--focus-border);
+    background: var(--input-fields);
+    box-shadow:
+        0 0 0 3px var(--accent-glow),
+        0 2px 12px rgba(99, 102, 241, 0.12);
+}
+
+/* ─── Primary button ─── */
+.btn-primary {
+    width: 100%;
+    padding: 15px;
+    background: var(--primary-accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    animation: btnEntry 0.5s ease both;
+}
+
+@keyframes btnEntry {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.btn-primary:hover {
+    background: var(--accent-light);
+    transform: translateY(-1px);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-primary:disabled {
+    background: rgba(158, 154, 176, 0.2);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ─── Error message ─── */
+.error-msg {
+    color: var(--danger-error);
+    font-size: 0.83rem;
+    margin-top: 8px;
+    display: none;
+    font-weight: 500;
+    padding-left: 2px;
+}
+
+/* ─── Step transitions ─── */
+.step {
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step.hidden {
+    display: none;
+    opacity: 0;
+    transform: translateX(24px);
+}
+
+/* ─── OTP helper text ─── */
+.otp-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 12px;
+    opacity: 0.7;
+    font-weight: 400;
+}
+
+/* ─── Registration Styles ─── */
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+.form-group.half {
+    flex: 1;
+}
+
+.auth-switch {
+    margin-top: 16px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+.auth-switch a {
+    color: var(--primary-accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+.auth-switch a:hover {
+    text-decoration: underline;
+}
+
+/* ─── intl-tel-input dark overrides ─── */
+.iti__country-list {
+    background: #1e1b2e;
+    border: 1px solid var(--border-line);
+    border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+    color: var(--text-primary);
+}
+
+.iti__country:hover,
+.iti__country.iti__highlight {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.iti__selected-flag {
+    border-radius: 14px 0 0 14px;
+}
+
+.iti__selected-flag:hover,
+.iti__selected-flag:focus {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.iti__dial-code {
+    color: var(--text-muted);
+}
+
+.iti__search-input {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-line);
+    color: var(--text-primary);
+    border-radius: 8px;
+}
+
+.iti input {
+    padding-left: 52px !important;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 480px) {
+    .login-container {
+        margin: 16px;
+        padding: 32px 24px 28px;
+        border-radius: 22px;
+    }
+
+    .login-header h2 {
+        font-size: 1.4rem;
+    }
+}

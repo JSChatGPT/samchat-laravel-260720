@@ -1,0 +1,142 @@
+# Samchats API Documentation - Advanced Contacts & Status Privacy
+
+This document covers the new Status Privacy feature and the expansion of the "Saved Name" functionality across all major API resources.
+
+## 1. Global "Saved Name" Integration
+
+To make mobile app development easier, the backend now automatically injects the `saved_name` attribute into `User` objects across **ALL** major endpoints whenever the authenticated user has saved that person as a contact. 
+
+**Whenever you receive a `User` object in the following endpoints, look for the `saved_name` property:**
+- `GET /api/users/search` (Searching for new chats)
+- `GET /api/chats` (Inbox list)
+- `POST /api/chats` (Starting a new chat)
+- `GET /api/chats/{id}` (Viewing a specific chat or group)
+- `GET /api/calls` (Call history: inside `caller` and `receiver` objects)
+- `GET /api/statuses` (Status updates: inside the `user` object)
+
+### Example Payload Structure:
+```json
+{
+    "id": "user-uuid",
+    "first_name": "John",
+    "username": "johndoe",
+    "saved_name": "Mom" // Exists ONLY if saved as a contact
+}
+```
+
+**Mobile App Logic:** Always prioritize `saved_name`. If it is null or undefined, fall back to `first_name` + `last_name`, or `username`.
+
+---
+
+## 2. Status Privacy Settings
+
+Users can now control exactly who is allowed to view their status updates. The system respects these privacy settings at the API level, meaning a user will never even receive a status payload if they are blocked by the poster's privacy rules.
+
+### 2.1 Get Current Privacy Settings
+Retrieve the authenticated user's current status privacy configuration.
+
+**Endpoint:** `GET /api/users/privacy`
+
+#### Success Response (200 OK)
+```json
+{
+    "status_privacy": "contacts",
+    "status_privacy_list": []
+}
+```
+
+### 2.2 Update Privacy Settings
+Update the privacy rules for future status viewers.
+
+**Endpoint:** `POST /api/users/privacy`
+
+#### Payload (JSON)
+- `status_privacy` (required, string): Must be one of `everyone`, `contacts`, `selected`, or `exclude`.
+- `status_privacy_list` (optional, array): A list of UUIDs. Required only if using `selected` or `exclude`.
+
+**Privacy Modes:**
+1. `everyone`: Anyone on the platform can see the status.
+2. `contacts`: Only people saved in the user's address book can see the status. (Default behavior)
+3. `selected`: Only the specific users provided in `status_privacy_list` can see the status.
+4. `exclude`: Contacts can see the status, EXCEPT for the users provided in `status_privacy_list`.
+
+#### Example Payload (Exclude specific people)
+```json
+{
+    "status_privacy": "exclude",
+    "status_privacy_list": [
+        "annoying-cousin-uuid",
+        "boss-uuid"
+    ]
+}
+```
+
+#### Example Payload (Share only with selected close friends)
+```json
+{
+    "status_privacy": "selected",
+    "status_privacy_list": [
+        "best-friend-uuid"
+    ]
+}
+```
+
+#### Success Response (200 OK)
+Returns the updated settings.
+```json
+{
+    "status_privacy": "exclude",
+    "status_privacy_list": [
+        "annoying-cousin-uuid",
+        "boss-uuid"
+    ]
+}
+```
+
+---
+
+## 3. Phone Contacts Sync API
+
+To populate the "My Contacts" list seamlessly for mobile users (so they immediately see saved names and their statuses), the mobile app must read the device's native address book and send it to the backend via this bulk sync endpoint. The backend automatically finds any matching Samchats users and adds them to the user's `contacts` list.
+
+**Endpoint:** `POST /api/contacts/sync`
+
+#### Payload (JSON)
+- `contacts` (required, array of objects): An array containing the names and raw phone numbers from the device's address book.
+
+#### Example Payload
+```json
+{
+    "contacts": [
+        {
+            "phone_number": "+1234567890",
+            "name": "Mom"
+        },
+        {
+            "phone_number": "0987654321",
+            "name": "John Doe"
+        }
+    ]
+}
+```
+
+#### Success Response (200 OK)
+Returns the number of contacts successfully synced and the array of matching `Contact` models.
+```json
+{
+    "synced_count": 1,
+    "contacts": [
+        {
+            "id": 1,
+            "user_id": "current-user-uuid",
+            "contact_user_id": "matched-user-uuid",
+            "custom_name": "Mom",
+            "contact_user": {
+                "id": "matched-user-uuid",
+                "first_name": "Mary",
+                "last_name": "Smith"
+            }
+        }
+    ]
+}
+```
