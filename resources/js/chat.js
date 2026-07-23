@@ -256,6 +256,41 @@ async function getChatKey(chatId) {
     }
 }
 
+const e2eePendingKeyRequests = new Set();
+
+/**
+ * Like getChatKey, but when THIS device has no grant yet for a chat that's
+ * already keyed — the exact state right after clearing browser storage or
+ * logging in fresh — asks every other currently-connected device (across
+ * every participant, including this same user's other sessions) to reseal
+ * it right now, and waits briefly for the reply, instead of leaving every
+ * message in the chat permanently stuck behind "Unable to decrypt this
+ * message" until someone happens to send something new. Mirrors
+ * E2eeService.ensureChatKeyAvailable in the Flutter app — web previously had
+ * no equivalent of this pull-side recovery at all, only the (also newly
+ * added) push-side healMissingGrants.
+ */
+async function ensureChatKeyAvailable(chatId) {
+    let key = await getChatKey(chatId);
+    if (key) return key;
+    if (!(await chatHasEstablishedKey(chatId))) return null; // genuinely unencrypted chat — not an error
+
+    if (!e2eePendingKeyRequests.has(chatId)) {
+        e2eePendingKeyRequests.add(chatId);
+        fetch(`/api/chats/${chatId}/keys/request`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${window.API_TOKEN}`, 'Accept': 'application/json' }
+        }).catch(() => {}).finally(() => e2eePendingKeyRequests.delete(chatId));
+    }
+
+    for (let i = 0; i < 4; i++) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        key = await getChatKey(chatId);
+        if (key) return key;
+    }
+    return null;
+}
+
 async function fetchDeviceKeysForUser(userId) {
     try {
         const res = await fetch(`/api/users/${userId}/device-keys`, {
@@ -304,7 +339,7 @@ async function decryptMessageIfNeeded(msg) {
     const isEncrypted = meta.encrypted === true || meta.encrypted === 'true';
     if (!isEncrypted || !msg.content) return msg;
     try {
-        const key = await getChatKey(msg.chat_id);
+        const key = await ensureChatKeyAvailable(msg.chat_id);
         if (!key) return { ...msg, content: '🔒 Unable to decrypt this message' };
         const decrypted = await E2ee.decryptMessage(msg.content, key);
         return { ...msg, content: decrypted };
@@ -1393,6 +1428,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             renderChatList();
         })
+        .listen('ChatKeyGrantRequested', (e) => {
+            // Another of this chat's devices (often this very user, on
+            // their phone or another tab) is asking to be resealed —
+            // web previously never listened for this at all, so it could
+            // only ever be healed by luck (someone unrelated sending a new
+            // message). No-op if this device doesn't hold the chat's key
+            // itself, including hearing its own request echoed back.
+            healMissingGrants(e.chat_id);
+        })
         .listen('NewEmailReceived', (e) => {
             // Silently refresh the inbox list if it's open for the account
             // that just got new mail — no toast, matches how MessageSent
@@ -1907,6 +1951,11 @@ async function fetchInbox() {
             return chat;
         }));
         renderChatList();
+
+        // Simply opening the app now heals every chat this device already
+        // holds a key for — mirrors the mobile inbox fix. No-op per chat
+        // if this device doesn't hold that chat's key.
+        loadedInboxChats.forEach(chat => healMissingGrants(chat.id));
     } catch (err) {
         console.error('Failed to fetch inbox', err);
     }
@@ -2111,6 +2160,10 @@ async function loadChat(chatId, chatName, chatType = 'direct', chatData = null) 
         if (data.chat.participants) {
             await distributeNewChatKey(chatId, data.chat.participants.map(p => p.user_id));
         }
+        // Opportunistically reseals this chat's key to any participant
+        // device missing a grant — simply opening the chat now heals a
+        // reinstalled/new device, not just sending a new message.
+        healMissingGrants(chatId);
 
         msgContainer.innerHTML = '';
         lastMessageData = null;
