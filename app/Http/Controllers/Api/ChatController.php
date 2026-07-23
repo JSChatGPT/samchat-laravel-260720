@@ -19,7 +19,7 @@ class ChatController extends Controller
         
         $query = $user->chats()
             ->with(['group', 'participants.user', 'messages' => function ($q) {
-                $q->latest()->limit(1);
+                $q->latest()->limit(1)->with('receipts');
             }]);
 
         if ($request->has('filter')) {
@@ -282,7 +282,7 @@ class ChatController extends Controller
             
             DB::commit();
 
-            $message->load(['quotedMessage.sender', 'reactions']);
+            $message->load(['quotedMessage.sender', 'reactions', 'receipts']);
 
             // WebSockets Broadcast logic
             $messageSentEvent = new \App\Events\MessageSent($message);

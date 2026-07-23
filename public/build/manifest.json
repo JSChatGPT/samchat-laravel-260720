@@ -56,7 +56,7 @@
     "src": "_instrument-sans-600-normal-DMks36a2.woff"
   },
   "resources/css/app.css": {
-    "file": "assets/app-kE1PyfBc.css",
+    "file": "assets/app-Cg87yypr.css",
     "name": "app",
     "names": [
       "app.css"
@@ -65,7 +65,7 @@
     "isEntry": true
   },
   "resources/css/chat.css": {
-    "file": "assets/chat-BogaAEXs.css",
+    "file": "assets/chat-C9CaRvsl.css",
     "name": "chat",
     "names": [
       "chat.css"
@@ -98,7 +98,7 @@
     "isEntry": true
   },
   "resources/js/chat.js": {
-    "file": "assets/chat-BipXYFgm.js",
+    "file": "assets/chat-puS2PjxE.js",
     "name": "chat",
     "src": "resources/js/chat.js",
     "isEntry": true,

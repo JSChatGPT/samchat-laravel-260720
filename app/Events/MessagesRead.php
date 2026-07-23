@@ -25,9 +25,21 @@ class MessagesRead implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new PrivateChannel('chat.' . $this->chat_id),
         ];
+
+        // Without this, the sender only ever sees the read tick flip live
+        // if they happen to have this exact chat open (subscribed to the
+        // chat.{id} channel above) — everyone just sitting on the inbox
+        // list, like MessageSent/MessageReactionUpdated, needs their own
+        // user.{id} channel too.
+        $chat = \App\Models\Chat::with('participants')->find($this->chat_id);
+        foreach ($chat?->participants ?? [] as $participant) {
+            $channels[] = new PrivateChannel('user.' . $participant->user_id);
+        }
+
+        return $channels;
     }
 
     public function broadcastWith(): array

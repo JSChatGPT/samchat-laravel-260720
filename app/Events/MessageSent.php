@@ -38,7 +38,7 @@ class MessageSent implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        $this->message->loadMissing(['quotedMessage.sender', 'reactions']);
+        $this->message->loadMissing(['quotedMessage.sender', 'reactions', 'receipts']);
 
         return [
             'message' => $this->message->toArray(),

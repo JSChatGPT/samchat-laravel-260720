@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Kreait\Firebase\Messaging\AndroidConfig;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Laravel\Firebase\Facades\Firebase;
 use Throwable;
@@ -43,11 +44,21 @@ class PushNotificationService
         // pure data message is always handed to the app itself in every
         // app state instead; title/body ride along in `data` since the
         // client is what builds the visible notification now.
-        $message = CloudMessage::new()->withData(array_map('strval', [
-            ...$data,
-            'title' => $title,
-            'body' => $body,
-        ]));
+        $message = CloudMessage::new()
+            ->withData(array_map('strval', [
+                ...$data,
+                'title' => $title,
+                'body' => $body,
+            ]))
+            // FCM defaults data-only messages (this is one — no
+            // ->withNotification(), see above) to *normal* Android
+            // priority, which Doze/App Standby is free to defer for
+            // minutes instead of waking the device right away. Nothing
+            // sent through here can tolerate that — messages, reactions,
+            // and especially incoming calls all need to arrive
+            // immediately — so force high priority explicitly rather than
+            // relying on the SDK default.
+            ->withAndroidConfig(AndroidConfig::new()->withHighMessagePriority());
 
         try {
             $report = Firebase::messaging()->sendMulticast($message, $tokens);
