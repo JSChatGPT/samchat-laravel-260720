@@ -702,6 +702,14 @@ body.dark-theme ::-webkit-scrollbar-thumb:hover {
     line-height: 1;
 }
 
+/* Brief flash when scrolled here via tapping a reply's quoted preview —
+   see the click handler in chat.js right after buildQuotedHTML. A ring
+   (box-shadow), not a border, so it never nudges layout. */
+.message-highlight .message-bubble {
+    box-shadow: 0 0 0 2.5px var(--primary-accent) !important;
+    transition: box-shadow 0.3s ease;
+}
+
 .payment-request-card {
     border-radius: var(--radius-md);
     border: 1px solid var(--border-line);

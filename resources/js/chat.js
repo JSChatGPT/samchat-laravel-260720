@@ -331,7 +331,17 @@ async function tryEncryptForChat(chatId, plainText) {
  * on the Flutter side — a placeholder instead of base64 gibberish whenever
  * decryption can't happen, whatever the reason.
  */
+// Recurses into msg.quoted_message — a reply's quoted snippet is a full
+// nested message with its own (possibly still-encrypted) content, and was
+// previously never decrypted here at all, so the quoted-message block
+// rendered raw base64 ciphertext for any reply to an encrypted message
+// instead of the actual quoted text (same bug fixed in the Flutter app's
+// message_decryptor.dart — decryptChatMessage).
 async function decryptMessageIfNeeded(msg) {
+    if (msg.quoted_message) {
+        msg = { ...msg, quoted_message: await decryptMessageIfNeeded(msg.quoted_message) };
+    }
+
     // metadata comes back as either a JSON string or an already-parsed
     // object depending on the endpoint — same defensive check used
     // elsewhere in this file (e.g. call-log message rendering).
@@ -2458,11 +2468,27 @@ function buildQuotedHTML(msg) {
     const q = msg.quoted_message;
     const senderLabel = q.sender_id === window.APP_USER.id ? 'You' : getUserDisplayName(q.sender);
     const snippet = escapeHTML((q.content || previewTextForMessage(q) || 'Message').slice(0, 80));
-    return `<div class="quoted-message-block">
+    return `<div class="quoted-message-block" data-quoted-id="${q.id}">
         <div class="quoted-message-sender">${escapeHTML(senderLabel)}</div>
         <div class="quoted-message-text">${snippet}</div>
     </div>`;
 }
+
+// Tapping a reply's quoted preview jumps to and briefly highlights the
+// original message — WhatsApp-style, mirrors the Flutter app's
+// ChatDetailScreen._scrollToMessage. Web has no scroll-up pagination (see
+// the loadChat/fetchInbox note elsewhere), so this only ever works for a
+// message that's already rendered — a graceful no-op otherwise rather than
+// a broken-looking dead click.
+document.getElementById('chat-messages').addEventListener('click', (e) => {
+    const quotedBlock = e.target.closest('.quoted-message-block');
+    if (!quotedBlock) return;
+    const targetEl = document.getElementById(`msg-${quotedBlock.dataset.quotedId}`);
+    if (!targetEl) return;
+    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    targetEl.classList.add('message-highlight');
+    setTimeout(() => targetEl.classList.remove('message-highlight'), 1200);
+});
 
 function buildReactionsHTML(reactions) {
     if (!reactions || !reactions.length) return '';
