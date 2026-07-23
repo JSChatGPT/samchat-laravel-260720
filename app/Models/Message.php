@@ -50,4 +50,9 @@ class Message extends Model
     {
         return $this->belongsTo(Message::class, 'quoted_message_id');
     }
+
+    public function reactions()
+    {
+        return $this->hasMany(MessageReaction::class, 'message_id');
+    }
 }

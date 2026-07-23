@@ -185,7 +185,7 @@ class ChatController extends Controller
 
         $messages = $chat->messages()
             ->whereNotIn('id', $deletedMessageIds)
-            ->with(['sender', 'receipts'])
+            ->with(['sender', 'receipts', 'quotedMessage.sender', 'reactions'])
             ->latest() // equivalent to orderBy('created_at', 'desc')
             ->paginate(50);
             
@@ -282,6 +282,8 @@ class ChatController extends Controller
             
             DB::commit();
 
+            $message->load(['quotedMessage.sender']);
+
             // WebSockets Broadcast logic
             $messageSentEvent = new \App\Events\MessageSent($message);
             $messageSentEvent->dontBroadcastToCurrentUser();
@@ -311,6 +313,44 @@ class ChatController extends Controller
         broadcast(new \App\Events\MessagesRead($message->chat_id, [$message->id]))->toOthers();
 
         return response()->json(['status' => 'success']);
+    }
+
+    public function reactToMessage(Request $request, $message_id)
+    {
+        $request->validate([
+            'emoji' => 'required|string',
+        ]);
+
+        $user = $request->user();
+        $message = Message::findOrFail($message_id);
+
+        // Ensure the caller is actually a participant of the message's chat
+        $user->chats()->findOrFail($message->chat_id);
+
+        $existing = \App\Models\MessageReaction::where('message_id', $message->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($existing && $existing->emoji === $request->emoji) {
+            $existing->delete();
+            $action = 'removed';
+        } elseif ($existing) {
+            $existing->update(['emoji' => $request->emoji]);
+            $action = 'added';
+        } else {
+            \App\Models\MessageReaction::create([
+                'message_id' => $message->id,
+                'user_id' => $user->id,
+                'emoji' => $request->emoji,
+            ]);
+            $action = 'added';
+        }
+
+        $message->load('reactions');
+
+        broadcast(new \App\Events\MessageReactionUpdated($message, $user, $request->emoji, $action))->toOthers();
+
+        return response()->json(['reactions' => $message->reactions]);
     }
 
     public function clearMessages(Request $request, $chat_id)

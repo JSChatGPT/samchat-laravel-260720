@@ -68,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/chats/{chat_id}/messages/forward', [App\Http\Controllers\Api\ChatController::class, 'forwardMessage']);
     
     Route::post('/messages/{message_id}/read', [App\Http\Controllers\Api\ChatController::class, 'markAsRead']);
+    Route::post('/messages/{message_id}/react', [App\Http\Controllers\Api\ChatController::class, 'reactToMessage']);
     Route::delete('/messages/{message_id}', [App\Http\Controllers\Api\ChatController::class, 'deleteMessage']);
     
     Route::post('/groups', [App\Http\Controllers\Api\ChatController::class, 'createGroup']);

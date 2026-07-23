@@ -10,16 +10,23 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use App\Models\Message;
+use App\Models\User;
 
-class MessageSent implements ShouldBroadcastNow
+class MessageReactionUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $message;
+    public $reactor;
+    public $emoji;
+    public $action;
 
-    public function __construct(Message $message)
+    public function __construct(Message $message, User $reactor, string $emoji, string $action)
     {
         $this->message = $message;
+        $this->reactor = $reactor;
+        $this->emoji = $emoji;
+        $this->action = $action;
     }
 
     public function broadcastOn(): array
@@ -27,7 +34,7 @@ class MessageSent implements ShouldBroadcastNow
         $channels = [
             new PrivateChannel('chat.' . $this->message->chat_id),
         ];
-        
+
         $this->message->loadMissing('chat.participants');
         foreach ($this->message->chat->participants as $participant) {
             $channels[] = new PrivateChannel('user.' . $participant->user_id);
@@ -38,10 +45,13 @@ class MessageSent implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        $this->message->loadMissing(['quotedMessage.sender', 'reactions']);
-
         return [
-            'message' => $this->message->toArray(),
+            'message_id' => $this->message->id,
+            'chat_id' => $this->message->chat_id,
+            'reactions' => $this->message->reactions,
+            'reactor_id' => $this->reactor->id,
+            'emoji' => $this->emoji,
+            'action' => $this->action,
         ];
     }
 
@@ -50,6 +60,6 @@ class MessageSent implements ShouldBroadcastNow
      */
     public function broadcastAs(): string
     {
-        return 'MessageSent';
+        return 'MessageReactionUpdated';
     }
 }

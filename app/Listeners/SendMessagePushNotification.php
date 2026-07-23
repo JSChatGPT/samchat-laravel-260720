@@ -87,6 +87,7 @@ class SendMessagePushNotification implements ShouldQueue
             'video' => '🎥 Video',
             'audio' => '🎤 Voice message',
             'file' => '📎 File',
+            'sticker' => (string) ($message->content ?? '') . ' Sticker',
             'call_log' => '📞 Call',
             'payment_request' => '💰 Payment request',
             default => (string) ($message->content ?: 'New message'),
