@@ -702,11 +702,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // Emoji Picker
     const emojiPicker = document.getElementById('emoji-picker');
     document.getElementById('btn-smiley').addEventListener('click', () => {
+        document.getElementById('sticker-picker').style.display = 'none';
         emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
     });
     emojiPicker.addEventListener('emoji-click', event => {
         msgInput.value += event.detail.unicode;
         msgInput.dispatchEvent(new Event('input')); // trigger toggle
+    });
+
+    // Sticker Picker — curated big-emoji tray (no sticker art assets exist;
+    // kept identical to the mobile client's kStickerEmojis list for parity).
+    const STICKER_EMOJIS = [
+        '🎉', '❤️', '😂', '😍', '😢', '😮', '🙏', '🔥',
+        '👍', '👏', '🥳', '😎', '🤔', '😴', '🤗', '😇',
+        '🥰', '😜', '🤯', '💯', '✨', '🎂', '🌈', '☕',
+    ];
+    const stickerPicker = document.getElementById('sticker-picker');
+    stickerPicker.style.display = 'none';
+    STICKER_EMOJIS.forEach(emoji => {
+        const btn = document.createElement('div');
+        btn.textContent = emoji;
+        btn.style.cssText = 'font-size: 28px; text-align: center; cursor: pointer; border-radius: 8px; padding: 4px 0;';
+        btn.addEventListener('click', () => sendSticker(emoji));
+        stickerPicker.appendChild(btn);
+    });
+    document.getElementById('btn-sticker').addEventListener('click', () => {
+        emojiPicker.style.display = 'none';
+        const isOpen = stickerPicker.style.display !== 'none';
+        stickerPicker.style.display = isOpen ? 'none' : 'grid';
     });
 
     // File Uploads
@@ -2155,6 +2178,10 @@ function listenToChat(chatId) {
         }
     });
 
+    channel.listen('MessageReactionUpdated', (e) => {
+        renderReactionsForMessage(e.message_id, e.reactions);
+    });
+
     // Server-broadcast event (POST /chats/{id}/typing -> UserTyping), the
     // same one the mobile app sends/listens for — replaces the old
     // Pusher-whisper-only approach so typing is visible across platforms.
@@ -2176,6 +2203,70 @@ function listenToChat(chatId) {
 
 let lastMessageData = null;
 let lastMessageNode = null;
+
+// The message currently being replied to (full object, needed for the
+// composer's reply-preview sender/snippet) — cleared on send or on closing
+// the preview. Populated from messagesById, kept alongside it below.
+let replyingToMessage = null;
+const messagesById = {};
+
+function getUserDisplayNameForReply(msg) {
+    if (msg.sender_id === window.APP_USER.id) return 'You';
+    return getUserDisplayName(msg.sender);
+}
+
+function showReplyPreview(msg) {
+    replyingToMessage = msg;
+    document.getElementById('reply-preview-sender').textContent = getUserDisplayNameForReply(msg);
+    document.getElementById('reply-preview-text').textContent = msg.content || previewTextForMessage(msg);
+    document.getElementById('reply-preview-bar').style.display = 'flex';
+    document.getElementById('message-input').focus();
+}
+
+function hideReplyPreview() {
+    replyingToMessage = null;
+    document.getElementById('reply-preview-bar').style.display = 'none';
+}
+
+function previewTextForMessage(msg) {
+    switch (msg.message_type) {
+        case 'image': return '📷 Photo';
+        case 'video': return '🎥 Video';
+        case 'voice': return '🎤 Voice note';
+        case 'document': return '📎 File';
+        case 'sticker': return `${msg.content || '🎉'} Sticker`;
+        default: return msg.content || '';
+    }
+}
+
+document.getElementById('btn-close-reply-preview').addEventListener('click', hideReplyPreview);
+
+async function sendSticker(emoji) {
+    if (!currentChatId) return;
+    document.getElementById('sticker-picker').style.display = 'none';
+
+    try {
+        const response = await fetch(`/api/chats/${currentChatId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.API_TOKEN}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                message_type: 'sticker',
+                content: emoji,
+                ...(replyingToMessage ? { quoted_message_id: replyingToMessage.id } : {})
+            })
+        });
+        const data = await response.json();
+        appendMessage(data.message);
+        fetchInbox();
+        hideReplyPreview();
+    } catch (e) {
+        console.error('Sticker send failed', e);
+    }
+}
 
 // Global map to hold audio instances for voice notes
 const activeAudios = new Map();
@@ -2309,10 +2400,41 @@ function buildPaymentRequestCard(msg, isSent) {
     `;
 }
 
+function buildQuotedHTML(msg) {
+    if (!msg.quoted_message) return '';
+    const q = msg.quoted_message;
+    const senderLabel = q.sender_id === window.APP_USER.id ? 'You' : getUserDisplayName(q.sender);
+    const snippet = escapeHTML((q.content || previewTextForMessage(q) || 'Message').slice(0, 80));
+    return `<div class="quoted-message-block">
+        <div class="quoted-message-sender">${escapeHTML(senderLabel)}</div>
+        <div class="quoted-message-text">${snippet}</div>
+    </div>`;
+}
+
+function buildReactionsHTML(reactions) {
+    if (!reactions || !reactions.length) return '';
+    const counts = {};
+    const mine = new Set();
+    reactions.forEach(r => {
+        counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+        if (r.user_id === window.APP_USER.id) mine.add(r.emoji);
+    });
+    return Object.entries(counts).map(([emoji, count]) => `
+        <span class="reaction-pill${mine.has(emoji) ? ' mine' : ''}">${emoji}${count > 1 ? ` <span class="reaction-count">${count}</span>` : ''}</span>
+    `).join('');
+}
+
+function renderReactionsForMessage(messageId, reactions) {
+    const el = document.getElementById(`reactions-${messageId}`);
+    if (el) el.innerHTML = buildReactionsHTML(reactions);
+    if (messagesById[messageId]) messagesById[messageId].reactions = reactions;
+}
+
 function appendMessage(msg) {
     const isSent = msg.sender_id === window.APP_USER.id;
     const msgContainer = document.getElementById('chat-messages');
     const time = new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    messagesById[msg.id] = msg;
 
     const existingRow = document.getElementById(`msg-${msg.id}`);
     if (existingRow) {
@@ -2479,7 +2601,7 @@ function appendMessage(msg) {
     }
     
     let textContent = msg.content ? escapeHTML(msg.content) : '';
-    if (msg.message_type === 'payment_request') {
+    if (msg.message_type === 'payment_request' || msg.message_type === 'sticker') {
         textContent = '';
     }
 
@@ -2487,13 +2609,21 @@ function appendMessage(msg) {
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"></path></svg>
     </div>`;
 
+    const quotedHTML = buildQuotedHTML(msg);
+    const isSticker = msg.message_type === 'sticker';
+    const stickerHTML = isSticker
+        ? `<div class="sticker-content">${escapeHTML(msg.content || '🎉')}</div>`
+        : '';
+
     row.innerHTML = `
         <input type="checkbox" class="msg-select-checkbox" data-msg-id="${msg.id}">
-        <div class="message-bubble">
+        <div class="message-bubble ${isSticker ? 'sticker-bubble' : ''}">
             ${actionsBtnHTML}
             ${senderHTML}
-            ${mediaHTML}
+            ${quotedHTML}
+            ${isSticker ? stickerHTML : mediaHTML}
             ${textContent ? `<div class="message-content">${textContent}</div>` : ''}
+            <div class="reaction-pills" id="reactions-${msg.id}">${buildReactionsHTML(msg.reactions)}</div>
             <div class="message-meta">
                 ${time} ${tickHTML}
             </div>
@@ -2592,7 +2722,8 @@ async function sendMessage() {
             body: JSON.stringify({
                 message_type: 'text',
                 content: outgoingContent,
-                ...(Object.keys(metadata).length ? { metadata } : {})
+                ...(Object.keys(metadata).length ? { metadata } : {}),
+                ...(replyingToMessage ? { quoted_message_id: replyingToMessage.id } : {})
             })
         });
 
@@ -2603,6 +2734,7 @@ async function sendMessage() {
         if (outgoingContent !== content) data.message.content = content;
         appendMessage(data.message);
         fetchInbox(); // Refresh sidebar to re-sort
+        hideReplyPreview();
         
         // Update tick to delivered for testing
         setTimeout(() => {
@@ -5456,6 +5588,57 @@ document.addEventListener('click', (e) => {
 
 document.getElementById('btn-delete-msg-me').addEventListener('click', () => deleteMessageApi('me'));
 document.getElementById('btn-delete-msg-everyone').addEventListener('click', () => deleteMessageApi('everyone'));
+
+document.getElementById('btn-reply-msg').addEventListener('click', () => {
+    document.getElementById('message-context-menu').style.display = 'none';
+    const msg = messagesById[currentContextMsgId];
+    if (msg) showReplyPreview(msg);
+});
+
+async function reactToMessage(messageId, emoji) {
+    try {
+        const response = await fetch(`/api/messages/${messageId}/react`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.API_TOKEN}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ emoji })
+        });
+        const data = await response.json();
+        if (data.reactions) renderReactionsForMessage(messageId, data.reactions);
+    } catch (e) {
+        console.error('React failed', e);
+    }
+}
+
+document.querySelectorAll('.quick-react-emoji').forEach(el => {
+    el.addEventListener('click', () => {
+        document.getElementById('message-context-menu').style.display = 'none';
+        if (currentContextMsgId) reactToMessage(currentContextMsgId, el.dataset.emoji);
+    });
+});
+
+// "More" reactions — a dedicated <emoji-picker> so it never inserts into
+// the message composer's text input (that's #emoji-picker's job).
+const reactionEmojiPicker = document.getElementById('reaction-emoji-picker');
+document.getElementById('btn-react-more').addEventListener('click', (e) => {
+    document.getElementById('message-context-menu').style.display = 'none';
+    const rect = e.target.getBoundingClientRect();
+    reactionEmojiPicker.style.top = `${rect.bottom + window.scrollY}px`;
+    reactionEmojiPicker.style.left = `${rect.left + window.scrollX - 100}px`;
+    reactionEmojiPicker.style.display = 'block';
+});
+reactionEmojiPicker.addEventListener('emoji-click', event => {
+    reactionEmojiPicker.style.display = 'none';
+    if (currentContextMsgId) reactToMessage(currentContextMsgId, event.detail.unicode);
+});
+document.addEventListener('click', (e) => {
+    if (reactionEmojiPicker.style.display !== 'none' && !reactionEmojiPicker.contains(e.target) && !e.target.closest('#btn-react-more')) {
+        reactionEmojiPicker.style.display = 'none';
+    }
+});
 
 // One-way "share via" hand-off to WhatsApp/email — not an inbox integration
 // (that needs real WhatsApp Business API / Gmail OAuth credentials this app

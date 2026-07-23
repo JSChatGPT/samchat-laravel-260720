@@ -620,6 +620,88 @@ body.dark-theme ::-webkit-scrollbar-thumb:hover {
     color: rgba(255, 255, 255, 0.75);
 }
 
+.quoted-message-block {
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    border-left: 3px solid var(--primary-accent);
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 6px;
+    font-size: 0.82rem;
+}
+
+.message-row.sent .quoted-message-block {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.quoted-message-sender {
+    font-weight: 700;
+    color: var(--primary-accent);
+    margin-bottom: 2px;
+}
+
+.message-row.sent .quoted-message-sender {
+    color: var(--text-on-accent);
+}
+
+.quoted-message-text {
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.message-row.sent .quoted-message-text {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.reaction-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.reaction-pills:empty {
+    display: none;
+    margin-top: 0;
+}
+
+.reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--chat-background);
+    border: 1px solid var(--border-line);
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    cursor: default;
+}
+
+.reaction-pill.mine {
+    border-color: var(--primary-accent);
+    border-width: 1.5px;
+}
+
+.reaction-count {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.sticker-bubble {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    padding: 2px 4px !important;
+}
+
+.sticker-content {
+    font-size: 4.2rem;
+    line-height: 1;
+}
+
 .payment-request-card {
     border-radius: var(--radius-md);
     border: 1px solid var(--border-line);

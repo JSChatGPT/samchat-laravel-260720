@@ -282,7 +282,7 @@ class ChatController extends Controller
             
             DB::commit();
 
-            $message->load(['quotedMessage.sender']);
+            $message->load(['quotedMessage.sender', 'reactions']);
 
             // WebSockets Broadcast logic
             $messageSentEvent = new \App\Events\MessageSent($message);

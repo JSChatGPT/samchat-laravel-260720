@@ -411,9 +411,22 @@
             <span>You have blocked this contact. <a href="#" id="btn-unblock-banner" style="color: var(--primary-accent); text-decoration: none; font-weight: 500;">Tap to unblock.</a></span>
         </div>
 
+        <!-- Reply preview bar — mirrors the mobile client's composer reply preview -->
+        <div id="reply-preview-bar" style="display: none; align-items: center; gap: 10px; padding: 8px 16px; background: var(--chat-background); border-top: 1px solid var(--border-line);">
+            <div style="width: 3px; align-self: stretch; background: var(--primary-accent); border-radius: 2px;"></div>
+            <div style="flex: 1; min-width: 0;">
+                <div id="reply-preview-sender" style="font-size: 0.85rem; font-weight: 700; color: var(--primary-accent);"></div>
+                <div id="reply-preview-text" style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+            </div>
+            <div id="btn-close-reply-preview" style="cursor: pointer; padding: 4px; color: var(--text-muted);">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+            </div>
+        </div>
+
         <div class="chat-composer">
             <emoji-picker id="emoji-picker" class="dark" style="display: none; position: absolute; bottom: 70px; left: 16px; z-index: 100; background: var(--chat-background); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid var(--border-line);"></emoji-picker>
-            
+            <div id="sticker-picker" style="display: none; position: absolute; bottom: 70px; left: 16px; width: 300px; max-height: 320px; overflow-y: auto; z-index: 100; background: var(--chat-background); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid var(--border-line); padding: 10px; grid-template-columns: repeat(6, 1fr); gap: 4px;"></div>
+
             <!-- Attachment Menu -->
             <div id="attachment-menu" style="display: none; position: absolute; bottom: 70px; left: 55px; background: var(--chat-background); border-radius: 16px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 3000; flex-direction: column; gap: 15px; border: 1px solid var(--border-line);">
                 <div class="attachment-option" id="btn-attach-doc" style="display: flex; align-items: center; gap: 15px; cursor: pointer;">
@@ -435,6 +448,7 @@
             
             <div class="composer-icons">
                 <svg id="btn-smiley" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M9.153 11.603c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zm-3.204 1.362c-.026-.307-.131 5.218 6.063 5.551 6.066-.25 6.066-5.551 6.066-5.551-6.078 1.416-12.129 0-12.129 0zm11.363 1.108s-.669 1.959-5.051 1.959c-3.505 0-5.388-1.164-5.607-1.959 0 0 5.912 1.055 10.658 0zM11.804 1.011C5.609 1.011.978 6.033.978 12.228s4.826 10.761 11.021 10.761S23.02 18.423 23.02 12.228c.001-6.195-5.021-11.217-11.216-11.217zM12 21.354c-5.273 0-9.381-3.886-9.381-9.159s3.942-9.548 9.215-9.548 9.548 4.275 9.548 9.548c-.001 5.272-4.109 9.159-9.382 9.159zm3.108-9.751c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962z"></path></svg>
+                <svg id="btn-sticker" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" title="Stickers"><path d="M19.78 4.22A2 2 0 0 0 18.36 3.64L5.64 3.64A2 2 0 0 0 3.64 5.64L3.64 18.36A2 2 0 0 0 5.64 20.36L14 20.36 20.36 14 20.36 5.64A2 2 0 0 0 19.78 4.22M13 18.5L13 15A2 2 0 0 1 15 13L18.5 13Z"></path></svg>
                 <svg id="btn-paperclip" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M1.816 15.556v.002c0 1.502.584 2.912 1.646 3.972s2.472 1.647 3.974 1.647a5.58 5.58 0 0 0 3.972-1.645l9.547-9.548c.769-.768 1.147-1.767 1.058-2.817-.079-.968-.548-1.927-1.319-2.698-1.594-1.592-4.068-1.711-5.517-.262l-7.916 7.915c-.881.881-.792 2.25.214 3.261.959.958 2.423 1.053 3.263.215l5.511-5.512c.28-.28.267-.722.053-.936l-.244-.244c-.191-.191-.567-.349-.957.04l-5.506 5.506c-.18.18-.635.127-.976-.214-.098-.097-.576-.613-.213-.973l7.915-7.917c.818-.817 2.267-.699 3.23.262.5.501.802 1.1.849 1.685.051.573-.156 1.111-.589 1.543l-9.547 9.549a3.97 3.97 0 0 1-2.829 1.171 3.975 3.975 0 0 1-2.83-1.173 3.973 3.973 0 0 1-1.172-2.828c0-1.071.415-2.076 1.172-2.83l7.209-7.211c.157-.157.264-.579.028-.814L11.5 4.36a.572.572 0 0 0-.834.018l-7.205 7.207a5.577 5.577 0 0 0-1.645 3.971z"></path></svg>
                 <svg id="btn-chat-payment" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" title="Send payment">
                     <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 3v8h14V8H5zm7-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-1.08 8.8v-.9c-1.22-.15-2.14-.93-2.24-2.1h1.54c.08.62.58 1 1.32 1 .77 0 1.22-.31 1.22-.8 0-.46-.34-.69-1.3-.92-1.4-.33-2.54-.75-2.54-2.18 0-1.1.84-1.88 2.12-2.04V7.6h1.16v.91c1.16.18 1.9.9 2 2.01h-1.51c-.09-.54-.49-.86-1.15-.86-.67 0-1.08.3-1.08.75 0 .44.39.64 1.38.88 1.47.35 2.48.86 2.48 2.23 0 1.12-.87 1.92-2.24 2.08v.94h-1.16z"></path>
@@ -776,6 +790,19 @@
 
     <!-- Message Context Menu -->
     <div id="message-context-menu" style="display: none; position: absolute; background: var(--bg-dropdown); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid var(--border-line); z-index: 3500; min-width: 180px; overflow: hidden; padding: 5px 0;">
+        <div style="display: flex; justify-content: space-around; padding: 6px 8px; border-bottom: 1px solid var(--border-line);">
+            <span class="quick-react-emoji" data-emoji="👍" style="cursor: pointer; font-size: 1.2rem;">👍</span>
+            <span class="quick-react-emoji" data-emoji="❤️" style="cursor: pointer; font-size: 1.2rem;">❤️</span>
+            <span class="quick-react-emoji" data-emoji="😂" style="cursor: pointer; font-size: 1.2rem;">😂</span>
+            <span class="quick-react-emoji" data-emoji="😮" style="cursor: pointer; font-size: 1.2rem;">😮</span>
+            <span class="quick-react-emoji" data-emoji="😢" style="cursor: pointer; font-size: 1.2rem;">😢</span>
+            <span class="quick-react-emoji" data-emoji="🙏" style="cursor: pointer; font-size: 1.2rem;">🙏</span>
+            <span id="btn-react-more" style="cursor: pointer; font-size: 1.2rem;">➕</span>
+        </div>
+        <div class="dropdown-item" id="btn-reply-msg" style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; cursor: pointer;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"></path></svg>
+            Reply
+        </div>
         <div class="dropdown-item" id="btn-share-msg-whatsapp" style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; cursor: pointer;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2z"></path></svg>
             Share via WhatsApp
@@ -797,7 +824,11 @@
             Delete for everyone
         </div>
     </div>
-    
+
+    <!-- Dedicated to message reactions — kept separate from #emoji-picker so
+         opening it never inserts into the message composer's text input. -->
+    <emoji-picker id="reaction-emoji-picker" class="dark" style="display: none; position: absolute; z-index: 3600; background: var(--chat-background); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid var(--border-line);"></emoji-picker>
+
     <!-- Image Gallery Slider -->
     <div id="image-gallery-slider" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; flex-direction: column;">
         <div style="height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1);">
