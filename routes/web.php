@@ -23,3 +23,8 @@ Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
 Route::get('/app', function () {
     return view('chat.index');
 })->middleware('auth');
+
+// Public Policy Pages
+Route::get('/help/child-safety', function () {
+    return view('help.child-safety');
+})->name('help.child-safety');
