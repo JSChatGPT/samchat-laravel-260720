@@ -3960,28 +3960,39 @@ async function flushPendingCandidates(peerId, pc) {
 
 // STUN discovers public addresses; a TURN relay is required when a direct
 // peer path is blocked (Wi-Fi AP/client isolation, symmetric NAT, mobile data)
-// or ICE fails. Configure via Vite env (mirrors the Flutter app's TURN_URL):
-//   VITE_TURN_URL=turn:203.0.113.9:3478?transport=udp,turn:203.0.113.9:3478?transport=tcp
-//   VITE_TURN_USERNAME=samchat  VITE_TURN_CREDENTIAL=secret
-// Leave VITE_TURN_URL unset to stay STUN-only.
-const ICE_SERVERS = {
-    iceServers: (() => {
-        const servers = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-        ];
-        const turnUrl = import.meta.env.VITE_TURN_URL;
-        if (turnUrl) {
-            const urls = turnUrl.split(',').map(u => u.trim()).filter(Boolean);
-            servers.push({
-                urls: urls.length === 1 ? urls[0] : urls,
-                username: import.meta.env.VITE_TURN_USERNAME || '',
-                credential: import.meta.env.VITE_TURN_CREDENTIAL || ''
-            });
-        }
-        return servers;
-    })()
-};
+// or ICE fails. The relay itself is a short-lived Cloudflare Realtime TURN
+// credential fetched from the backend per call (see
+// CallController::turnCredentials — same endpoint the Flutter app uses),
+// rather than a static VITE_TURN_URL baked into the build: that avoids
+// shipping a long-lived TURN password to every browser tab, and Cloudflare's
+// network reaches callers "everywhere," not just whatever LAN a self-hosted
+// TURN box happens to sit on. Fetched once per call and cached in
+// `cachedTurnServer` (reset in endCall) since a call may open several peer
+// connections (group calls). Falls back to STUN-only if the fetch fails.
+let cachedTurnServer = null;
+
+async function fetchTurnServer() {
+    try {
+        const res = await fetch('/api/calls/turn-credentials', {
+            headers: { 'Authorization': `Bearer ${window.API_TOKEN}` }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.iceServers || null;
+    } catch (e) {
+        console.warn('[WebRTC] Failed to fetch TURN credentials, falling back to STUN-only', e);
+        return null;
+    }
+}
+
+function buildIceServers() {
+    const servers = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ];
+    if (cachedTurnServer) servers.push(cachedTurnServer);
+    return { iceServers: servers };
+}
 
 function setupAudioVisualizer(stream, targetElementId, identifierName) {
     try {
@@ -4084,8 +4095,9 @@ async function setupMedia(type) {
 function createPeerConnection(targetUserId) {
     if (peerConnections[targetUserId]) return peerConnections[targetUserId];
 
-    console.warn('[WebRTC] creating PeerConnection with ICE_SERVERS:', JSON.stringify(ICE_SERVERS));
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    const iceServers = buildIceServers();
+    console.warn('[WebRTC] creating PeerConnection with ICE_SERVERS:', JSON.stringify(iceServers));
+    const pc = new RTCPeerConnection(iceServers);
     peerConnections[targetUserId] = pc;
 
     if (localStream) {
@@ -4419,6 +4431,7 @@ async function initiateCall(type) {
     activeCallPeerId = receiver ? receiver.id : null;
 
     try {
+        cachedTurnServer = await fetchTurnServer();
         await setupMedia(type);
         showCallOverlay('Calling...', isGroup ? {name: loadedChatData.group?.group_name || 'Group', photo_url: loadedChatData.group?.group_image_url || ''} : receiver, false);
         
@@ -4518,6 +4531,7 @@ async function acceptCall() {
     acceptCallInFlight = activeCallId;
 
     try {
+        cachedTurnServer = await fetchTurnServer();
         await setupMedia(activeCallMode);
 
         await fetch(`/api/calls/${activeCallId}/accept`, {
@@ -4651,6 +4665,7 @@ function endCall() {
     remoteStreams = {};
     remoteDescriptionSet = new Set();
     pendingCandidates = {};
+    cachedTurnServer = null;
     offeredPeers = new Set();
     
     // Clean up audio visualizers

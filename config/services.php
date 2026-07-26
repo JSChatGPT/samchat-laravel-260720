@@ -42,4 +42,14 @@ return [
         'redirect_uri' => env('SAMPAY_REDIRECT_URI'),
     ],
 
+    // Cloudflare Realtime TURN — mints short-lived TURN credentials so calls
+    // can relay through Cloudflare's network from anywhere, not just whatever
+    // LAN the backend happens to be on. Create a free "Realtime TURN" App at
+    // https://dash.cloudflare.com (Realtime > TURN Service) to get these two
+    // values. See CallController::turnCredentials.
+    'cloudflare_turn' => [
+        'key_id' => env('CLOUDFLARE_TURN_KEY_ID'),
+        'api_token' => env('CLOUDFLARE_TURN_API_TOKEN'),
+    ],
+
 ];

@@ -87,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/calls', [App\Http\Controllers\Api\CallController::class, 'index']);
     Route::get('/calls/active', [App\Http\Controllers\Api\CallController::class, 'active']);
+    Route::get('/calls/turn-credentials', [App\Http\Controllers\Api\CallController::class, 'turnCredentials']);
     Route::post('/calls', [App\Http\Controllers\Api\CallController::class, 'initiate']);
     Route::get('/calls/{call_id}', [App\Http\Controllers\Api\CallController::class, 'show']);
     Route::post('/calls/{call_id}/accept', [App\Http\Controllers\Api\CallController::class, 'accept']);

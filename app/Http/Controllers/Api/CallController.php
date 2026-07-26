@@ -13,9 +13,43 @@ use App\Events\CallDeclined;
 use App\Events\CallSignal;
 use App\Events\MessageSent;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class CallController extends Controller
 {
+    /// Mints a short-lived Cloudflare Realtime TURN credential for the caller
+    /// to use as an ICE server — done server-side so the long-lived Cloudflare
+    /// API token never ships inside the app itself (unlike the old static
+    /// self-hosted TURN password baked into app config). Returns
+    /// `{"iceServers": null}` (never an error) when Cloudflare isn't
+    /// configured or the request fails, so the app can fall back to
+    /// STUN-only rather than the call flow breaking outright.
+    public function turnCredentials(Request $request)
+    {
+        $keyId = config('services.cloudflare_turn.key_id');
+        $apiToken = config('services.cloudflare_turn.api_token');
+
+        if (!$keyId || !$apiToken) {
+            return response()->json(['iceServers' => null]);
+        }
+
+        try {
+            $response = Http::withToken($apiToken)
+                ->timeout(5)
+                ->post("https://rtc.live.cloudflare.com/v1/turn/keys/{$keyId}/credentials/generate", [
+                    'ttl' => 3600,
+                ]);
+
+            if (!$response->successful()) {
+                return response()->json(['iceServers' => null]);
+            }
+
+            return response()->json(['iceServers' => $response->json('iceServers')]);
+        } catch (\Throwable $e) {
+            return response()->json(['iceServers' => null]);
+        }
+    }
+
     public function active(Request $request)
     {
         $user = $request->user();
