@@ -22,12 +22,25 @@ class StatusController extends Controller
         $postersWithCurrentUserInContacts = \App\Models\Contact::where('contact_user_id', $currentUser->id)->pluck('user_id')->toArray();
         $currentUserSavedContacts = $currentUser->savedContacts->pluck('custom_name', 'contact_user_id');
 
-        $filteredStatuses = $statuses->filter(function ($status) use ($currentUser, $postersWithCurrentUserInContacts, $currentUserSavedContacts) {
+        // Bidirectional — blocking someone (in either direction) must hide
+        // statuses both ways, the same as it already hides messages (see
+        // ChatController::storeMessage's identical block check).
+        $blockedUserIds = \App\Models\BlockedUser::where('blocker_id', $currentUser->id)
+            ->orWhere('blocked_id', $currentUser->id)
+            ->get()
+            ->map(fn ($b) => $b->blocker_id === $currentUser->id ? $b->blocked_id : $b->blocker_id)
+            ->toArray();
+
+        $filteredStatuses = $statuses->filter(function ($status) use ($currentUser, $postersWithCurrentUserInContacts, $currentUserSavedContacts, $blockedUserIds) {
             $poster = $status->user;
 
             // Always see own status
             if ($poster->id === $currentUser->id) {
                 return true;
+            }
+
+            if (in_array($poster->id, $blockedUserIds)) {
+                return false;
             }
 
             $privacy = $poster->status_privacy ?? 'contacts';

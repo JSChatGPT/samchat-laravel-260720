@@ -101,6 +101,23 @@ class CallController extends Controller
 
         $user = $request->user();
 
+        // Block check — mirrors ChatController::storeMessage: blocking is
+        // bidirectional and no direct contact should be possible either way
+        // until unblocked. Only applies to a direct 1:1 call (receiver_id);
+        // a group call isn't blocked just because one participant has a
+        // block relationship with the caller.
+        if ($request->receiver_id) {
+            $isBlocked = \App\Models\BlockedUser::where(function ($q) use ($user, $request) {
+                $q->where('blocker_id', $user->id)->where('blocked_id', $request->receiver_id);
+            })->orWhere(function ($q) use ($user, $request) {
+                $q->where('blocker_id', $request->receiver_id)->where('blocked_id', $user->id);
+            })->exists();
+
+            if ($isBlocked) {
+                return response()->json(['error' => 'Cannot call a blocked contact.'], 403);
+            }
+        }
+
         $call = Call::create([
             'caller_id' => $user->id,
             'receiver_id' => $request->receiver_id,

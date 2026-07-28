@@ -52,6 +52,12 @@ return [
         'api_token' => env('CLOUDFLARE_TURN_API_TOKEN'),
     ],
 
+    // Which SMS gateway OtpService uses to deliver OTP codes — 'mtn' or
+    // 'zamtel'. See AppServiceProvider's SmsGatewayInterface binding.
+    'sms' => [
+        'default' => env('SMS_PROVIDER', 'mtn'),
+    ],
+
     // MTN Ngage Enterprise Messaging (https://cpassmessaging.mtn.zm) — sends
     // the real OTP SMS for phone verification. See App\Services\MtnSmsService.
     // Requires an enterprise account (email/password, used to obtain a JWT)
@@ -61,6 +67,15 @@ return [
         'email' => env('MTN_SMS_EMAIL'),
         'password' => env('MTN_SMS_PASSWORD'),
         'sender_id' => env('MTN_SMS_SENDER_ID'),
+    ],
+
+    // Zamtel Bulk SMS (https://bulksms.zamtel.co.zm) — alternative OTP
+    // delivery provider, selected via SMS_PROVIDER=zamtel above. See
+    // App\Services\ZamtelSmsService.
+    'zamtel_sms' => [
+        'base_url' => env('ZAMTEL_SMS_BASE_URL', 'https://bulksms.zamtel.co.zm'),
+        'api_key' => env('ZAMTEL_SMS_API_KEY'),
+        'sender_id' => env('ZAMTEL_SMS_SENDER_ID'),
     ],
 
     // A single fixed phone number + code that Play/App Store reviewers can

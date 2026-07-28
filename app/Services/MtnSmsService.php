@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
  * enterprise account's email/password to get an access token, cache it, and
  * reuse it until it's rejected or the cache entry lapses.
  */
-class MtnSmsService
+class MtnSmsService implements SmsGatewayInterface
 {
     private const TOKEN_CACHE_KEY = 'mtn_sms_access_token';
 

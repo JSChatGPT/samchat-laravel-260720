@@ -7,6 +7,11 @@ let loadedChatData = null;
 let currentChatChannelName = null;
 let onlineUsers = new Set();
 let blockedUsersSet = new Set();
+// Whichever user's profile #pane-contact-info is currently showing — set by
+// renderContactInfoPane, read by the "Report this profile" button (see
+// openReportModal) since that button lives outside the function that knows
+// which targetUser was rendered.
+let currentProfileUserId = null;
 let loadedInboxChats = [];
 let activeSidebarFilter = 'all';
 // Chat IDs where the other participant is currently typing — drives the
@@ -1798,6 +1803,7 @@ function openContactInfo() {
 /// share one implementation of the avatar/name/about/save-contact/block
 /// wiring instead of drifting out of sync.
 function renderContactInfoPane(targetUser) {
+    currentProfileUserId = targetUser.id;
     document.getElementById('contact-info-name').innerText = getUserDisplayName(targetUser) || targetUser.phone_number;
     document.getElementById('contact-info-phone').innerText = targetUser.phone_number || '';
     document.getElementById('contact-info-about').innerText = targetUser.about_status || 'Available';
@@ -4526,13 +4532,26 @@ async function initiateCall(type) {
             body: JSON.stringify(payload)
         });
         const data = await response.json();
+
+        // fetch() only rejects on a network error, never on an HTTP error
+        // status — a 403 (e.g. CallController::initiate's block check)
+        // still resolves normally here. Without this check, `data.call` is
+        // undefined and the next line's `.id` throws a generic TypeError
+        // that happens to land in the catch block below, but with the
+        // real "Cannot call a blocked contact" reason lost — just a
+        // confusing "Cannot read properties of undefined" in the console.
+        if (!response.ok || !data.call) {
+            throw new Error(data.error || data.message || 'Failed to start call');
+        }
+
         activeCallId = data.call.id;
         startRingtone();
         setupCallSignaling();
-        
+
         // Since we initiated, we are in the room. Wait for others.
     } catch (e) {
         console.error("Failed to initiate call", e);
+        alert(e.message || 'Could not start the call.');
         endCall();
     }
 }
@@ -5768,19 +5787,31 @@ document.getElementById('btn-reply-msg').addEventListener('click', () => {
     if (msg) showReplyPreview(msg);
 });
 
-/* --- Report message --- */
-let reportMessageId = null;
+/* --- Report message / report profile — one shared modal for both, since
+   the flow (pick a reason, optional details, submit) is identical; only
+   the target endpoint and success/error copy differ. --- */
+let reportTarget = null; // { type: 'message' | 'user', id: string }
 let selectedReportReason = null;
 
-document.getElementById('btn-report-msg').addEventListener('click', () => {
-    document.getElementById('message-context-menu').style.display = 'none';
-    reportMessageId = currentContextMsgId;
+function openReportModal(type, id) {
+    reportTarget = { type, id };
     selectedReportReason = null;
     document.getElementById('report-details-input').style.display = 'none';
     document.getElementById('report-details-input').value = '';
     document.getElementById('btn-report-submit').style.display = 'none';
     document.querySelectorAll('.report-reason-option').forEach(el => el.style.fontWeight = '400');
     document.getElementById('report-message-modal').style.display = 'flex';
+}
+window.openReportModal = openReportModal;
+
+document.getElementById('btn-report-msg').addEventListener('click', () => {
+    document.getElementById('message-context-menu').style.display = 'none';
+    openReportModal('message', currentContextMsgId);
+});
+
+document.getElementById('ci-report-btn-container')?.addEventListener('click', () => {
+    if (!currentProfileUserId) return;
+    openReportModal('user', currentProfileUserId);
 });
 
 document.querySelectorAll('.report-reason-option').forEach(el => {
@@ -5805,10 +5836,13 @@ document.getElementById('btn-report-cancel').addEventListener('click', () => {
 });
 
 document.getElementById('btn-report-submit').addEventListener('click', async () => {
-    if (!reportMessageId || !selectedReportReason) return;
+    if (!reportTarget || !selectedReportReason) return;
     const details = document.getElementById('report-details-input').value.trim();
+    const endpoint = reportTarget.type === 'user'
+        ? `/api/users/${reportTarget.id}/report`
+        : `/api/messages/${reportTarget.id}/report`;
     try {
-        await fetch(`/api/messages/${reportMessageId}/report`, {
+        await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${window.API_TOKEN}`,
@@ -5818,10 +5852,10 @@ document.getElementById('btn-report-submit').addEventListener('click', async () 
             body: JSON.stringify({ reason: selectedReportReason, details: details || undefined })
         });
         document.getElementById('report-message-modal').style.display = 'none';
-        alert('Message reported. Thank you.');
+        alert(reportTarget.type === 'user' ? 'Profile reported. Thank you.' : 'Message reported. Thank you.');
     } catch (e) {
-        console.error('Failed to report message', e);
-        alert('Could not report message. Please try again.');
+        console.error('Failed to report', reportTarget, e);
+        alert(reportTarget.type === 'user' ? 'Could not report profile. Please try again.' : 'Could not report message. Please try again.');
     }
 });
 

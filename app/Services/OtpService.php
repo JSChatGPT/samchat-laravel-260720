@@ -25,7 +25,7 @@ class OtpService
     private const RESEND_COOLDOWN_SECONDS = 60;
     private const MAX_VERIFY_ATTEMPTS = 5;
 
-    public function __construct(private MtnSmsService $sms)
+    public function __construct(private SmsGatewayInterface $sms)
     {
     }
 

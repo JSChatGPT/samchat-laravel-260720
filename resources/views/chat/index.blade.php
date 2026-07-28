@@ -565,6 +565,11 @@
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z"></path></svg>
                 <span id="ci-block-text">Block User</span>
             </div>
+
+            <div id="ci-report-btn-container" style="background: var(--cards); padding: 15px; border-radius: 12px; text-align: left; cursor: pointer; color: #ef4444; font-weight: 500; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border-line); margin-top: 10px;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"></path></svg>
+                <span>Report this profile</span>
+            </div>
         </div>
 
         <!-- Group Info Pane -->

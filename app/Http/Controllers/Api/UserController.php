@@ -36,6 +36,33 @@ class UserController extends Controller
     }
 
     /**
+     * Report an entire profile (as opposed to ChatController::reportMessage,
+     * which reports one message) — reached from the "Report" action on the
+     * contact-info / view-profile screen.
+     */
+    public function report(Request $request, $user_id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:255',
+            'details' => 'nullable|string|max:2000',
+        ]);
+
+        $reporter = $request->user();
+        $reportedUser = User::findOrFail($user_id);
+
+        if ($reporter->id === $reportedUser->id) {
+            return response()->json(['message' => 'You cannot report yourself.'], 400);
+        }
+
+        \App\Models\UserReport::updateOrCreate(
+            ['reporter_id' => $reporter->id, 'reported_user_id' => $reportedUser->id],
+            ['reason' => $request->reason, 'details' => $request->details]
+        );
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /**
      * A user's viewable-by-anyone profile (the WhatsApp-style "tap a name/
      * avatar to see this person" screen). Deliberately NOT `User::findOrFail`
      * returned as-is — that would serialize every column on the model,

@@ -103,6 +103,18 @@ class User extends Authenticatable
             return true;
         }
 
+        // Bidirectional — mirrors StatusController::index's identical check,
+        // which this method deliberately doesn't get called by (see its own
+        // doc comment) but must still agree with for any other caller.
+        $isBlocked = \App\Models\BlockedUser::where(function ($q) use ($poster) {
+            $q->where('blocker_id', $this->id)->where('blocked_id', $poster->id);
+        })->orWhere(function ($q) use ($poster) {
+            $q->where('blocker_id', $poster->id)->where('blocked_id', $this->id);
+        })->exists();
+        if ($isBlocked) {
+            return false;
+        }
+
         $privacy = $poster->status_privacy ?? 'contacts';
         $privacyList = $poster->status_privacy_list ?? [];
 

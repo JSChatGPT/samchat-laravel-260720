@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users/{user_id}/block', [App\Http\Controllers\Api\BlockController::class, 'block']);
     Route::delete('/users/{user_id}/block', [App\Http\Controllers\Api\BlockController::class, 'unblock']);
     Route::get('/users/{user_id}/online-status', [App\Http\Controllers\Api\UserController::class, 'onlineStatus']);
+    Route::post('/users/{user_id}/report', [App\Http\Controllers\Api\UserController::class, 'report']);
     Route::get('/users/{user_id}', [App\Http\Controllers\Api\UserController::class, 'show']);
     
     Route::post('/chats', [App\Http\Controllers\Api\ChatController::class, 'store']);
