@@ -56,9 +56,9 @@
     <div id="step-otp" class="step hidden" style="display: none;">
         <div class="form-group">
             <label for="otp_code">Enter OTP</label>
-            <input type="text" id="otp_code" class="form-input" placeholder="123456" maxlength="6">
+            <input type="text" id="otp_code" class="form-input" placeholder="Enter code" maxlength="6">
             <div id="error-otp" class="error-msg"></div>
-            <p class="otp-hint">For testing, use the OTP: 123456</p>
+            <p class="otp-hint">We sent a 6-digit code to your phone via SMS.</p>
         </div>
         <button id="btn-verify-otp" class="btn-primary">Verify & Login</button>
         <p class="auth-switch"><a href="#" id="link-back-login-otp">Back to Login</a></p>
