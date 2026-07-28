@@ -1739,20 +1739,27 @@ function openContactInfo() {
                 let actionsHTML = '';
                 if (isAdmin && !isMe) {
                     actionsHTML = `
-                        <div class="participant-actions" onclick="toggleParticipantMenu(event, '${user.id}')">
+                        <div class="participant-actions" onclick="event.stopPropagation(); toggleParticipantMenu(event, '${user.id}')">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path></svg>
                         </div>
                         <div id="participant-menu-${user.id}" class="participant-menu" style="display: none;">
-                            <div class="participant-menu-item" onclick="updateParticipantRole('${user.id}', ${!isMemberAdmin})">
+                            <div class="participant-menu-item" onclick="event.stopPropagation(); updateParticipantRole('${user.id}', ${!isMemberAdmin})">
                                 ${isMemberAdmin ? 'Remove Admin' : 'Make Admin'}
                             </div>
-                            <div class="participant-menu-item text-danger" onclick="kickParticipant('${user.id}')">
+                            <div class="participant-menu-item text-danger" onclick="event.stopPropagation(); kickParticipant('${user.id}')">
                                 Remove User
                             </div>
                         </div>
                     `;
                 }
-                
+
+                // Tapping the row itself opens that member's profile —
+                // WhatsApp-style — same as tapping their name on a message
+                // bubble; admin management stays on the separate "⋮" above
+                // so it doesn't shadow that for every other viewer.
+                if (!isMe) item.style.cursor = 'pointer';
+                item.onclick = isMe ? null : () => openUserProfileById(user.id);
+
                 item.innerHTML = `
                     <img src="${user.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName(user))}&background=FF5722&color=fff`}" class="group-member-pic" style="width:40px; height:40px; border-radius:50%; margin-right:12px;">
                     <div class="group-member-info" style="flex:1;">
@@ -1781,103 +1788,175 @@ function openContactInfo() {
     }
     
     if (targetUser) {
-        document.getElementById('contact-info-name').innerText = getUserDisplayName(targetUser) || targetUser.phone_number;
-        document.getElementById('contact-info-phone').innerText = targetUser.phone_number || '';
-        document.getElementById('contact-info-about').innerText = targetUser.about_status || 'Available';
-        const contactInfoImg = document.getElementById('contact-info-img');
-        contactInfoImg.src = targetUser.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName(targetUser))}&background=FF5722&color=fff`;
-        // Reset to the default ring first — this element is reused across
-        // contacts, so a previous "unviewed status" ring must not bleed in.
-        contactInfoImg.style.border = '3px solid var(--border-line)';
-        fetch(`/api/users/${targetUser.id}/online-status`, {
-            headers: { 'Authorization': `Bearer ${window.API_TOKEN}`, 'Accept': 'application/json' }
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.has_unviewed_status && document.getElementById('contact-info-img') === contactInfoImg) {
-                    contactInfoImg.style.border = '3px solid var(--primary-accent, #FF5722)';
-                }
-            })
-            .catch(() => {});
+        renderContactInfoPane(targetUser);
+    }
+}
 
-        // Handle Contact Saving
-        const contactSaveInput = document.getElementById('contact-save-name');
-        const contactSaveBtn = document.getElementById('btn-save-contact');
-        if (contactSaveInput && contactSaveBtn) {
-            contactSaveInput.value = window.SAVED_CONTACTS[targetUser.id] || '';
-            contactSaveBtn.onclick = async () => {
-                const newName = contactSaveInput.value.trim();
-                const originalText = contactSaveBtn.innerText;
-                contactSaveBtn.innerText = '...';
-                contactSaveBtn.disabled = true;
-                
-                try {
-                    if (newName) {
-                        await fetch('/api/contacts', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${window.API_TOKEN}`,
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                contact_user_id: targetUser.id,
-                                custom_name: newName
-                            })
-                        });
-                        window.SAVED_CONTACTS[targetUser.id] = newName;
-                    } else if (window.SAVED_CONTACTS[targetUser.id]) {
-                        // User wants to remove the saved contact by clearing the name.
-                        // We need the contact ID, but we only have user_id in SAVED_CONTACTS map right now.
-                        // Actually, if we fetch contacts and index by user_id, we'd need the primary key `id` to delete.
-                        // Since I didn't store the primary key, let's just make clearing the input do nothing or we'd need an endpoint like DELETE /api/contacts/by-user/{id}.
-                        // For now, if they clear it, just revert.
-                        console.warn("Clearing name is not fully supported yet without primary key, reverting.");
-                        contactSaveInput.value = window.SAVED_CONTACTS[targetUser.id];
-                    }
-                    
-                    // Refresh views
-                    document.getElementById('contact-info-name').innerText = getUserDisplayName(targetUser) || targetUser.phone_number;
-                    renderMessages(loadedChatData.messages);
-                    fetchInbox(); // Refresh sidebar names
-                    
-                    contactSaveBtn.innerText = 'Saved!';
-                    setTimeout(() => {
-                        contactSaveBtn.innerText = 'Save';
-                        contactSaveBtn.disabled = false;
-                    }, 2000);
-                } catch (e) {
-                    console.error("Failed to save contact", e);
-                    contactSaveBtn.innerText = 'Error';
-                    setTimeout(() => {
-                        contactSaveBtn.innerText = 'Save';
-                        contactSaveBtn.disabled = false;
-                    }, 2000);
+/// Populates #pane-contact-info for any user (the current 1:1 chat's
+/// partner via openContactInfo, or an arbitrary group member/message
+/// sender via openUserProfileById) — factored out so both entry points
+/// share one implementation of the avatar/name/about/save-contact/block
+/// wiring instead of drifting out of sync.
+function renderContactInfoPane(targetUser) {
+    document.getElementById('contact-info-name').innerText = getUserDisplayName(targetUser) || targetUser.phone_number;
+    document.getElementById('contact-info-phone').innerText = targetUser.phone_number || '';
+    document.getElementById('contact-info-about').innerText = targetUser.about_status || 'Available';
+    const contactInfoImg = document.getElementById('contact-info-img');
+    contactInfoImg.src = targetUser.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName(targetUser))}&background=FF5722&color=fff`;
+    // Reset to the default ring first — this element is reused across
+    // contacts, so a previous "unviewed status" ring must not bleed in.
+    contactInfoImg.style.border = '3px solid var(--border-line)';
+    fetch(`/api/users/${targetUser.id}/online-status`, {
+        headers: { 'Authorization': `Bearer ${window.API_TOKEN}`, 'Accept': 'application/json' }
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.has_unviewed_status && document.getElementById('contact-info-img') === contactInfoImg) {
+                contactInfoImg.style.border = '3px solid var(--primary-accent, #FF5722)';
+            }
+        })
+        .catch(() => {});
+
+    // Handle Contact Saving
+    const contactSaveInput = document.getElementById('contact-save-name');
+    const contactSaveBtn = document.getElementById('btn-save-contact');
+    if (contactSaveInput && contactSaveBtn) {
+        contactSaveInput.value = window.SAVED_CONTACTS[targetUser.id] || '';
+        contactSaveBtn.onclick = async () => {
+            const newName = contactSaveInput.value.trim();
+            contactSaveBtn.innerText = '...';
+            contactSaveBtn.disabled = true;
+
+            try {
+                if (newName) {
+                    await fetch('/api/contacts', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${window.API_TOKEN}`,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            contact_user_id: targetUser.id,
+                            custom_name: newName
+                        })
+                    });
+                    window.SAVED_CONTACTS[targetUser.id] = newName;
+                } else if (window.SAVED_CONTACTS[targetUser.id]) {
+                    // User wants to remove the saved contact by clearing the name.
+                    // We need the contact ID, but we only have user_id in SAVED_CONTACTS map right now.
+                    // Actually, if we fetch contacts and index by user_id, we'd need the primary key `id` to delete.
+                    // Since I didn't store the primary key, let's just make clearing the input do nothing or we'd need an endpoint like DELETE /api/contacts/by-user/{id}.
+                    // For now, if they clear it, just revert.
+                    console.warn("Clearing name is not fully supported yet without primary key, reverting.");
+                    contactSaveInput.value = window.SAVED_CONTACTS[targetUser.id];
                 }
-            };
-        }
-        
-        const blockContainer = document.getElementById('ci-block-btn-container');
-        if (blockContainer) {
+
+                // Refresh views
+                document.getElementById('contact-info-name').innerText = getUserDisplayName(targetUser) || targetUser.phone_number;
+                if (loadedChatData?.messages) renderMessages(loadedChatData.messages);
+                fetchInbox(); // Refresh sidebar names
+
+                contactSaveBtn.innerText = 'Saved!';
+                setTimeout(() => {
+                    contactSaveBtn.innerText = 'Save';
+                    contactSaveBtn.disabled = false;
+                }, 2000);
+            } catch (e) {
+                console.error("Failed to save contact", e);
+                contactSaveBtn.innerText = 'Error';
+                setTimeout(() => {
+                    contactSaveBtn.innerText = 'Save';
+                    contactSaveBtn.disabled = false;
+                }, 2000);
+            }
+        };
+    }
+
+    const blockContainer = document.getElementById('ci-block-btn-container');
+    if (blockContainer) {
+        if (targetUser.id === window.APP_USER.id) {
+            blockContainer.style.display = 'none';
+        } else {
             blockContainer.style.display = 'flex';
             const textEl = document.getElementById('ci-block-text');
-            if (isBlocked) {
+            // Was `if (isBlocked)` — an undeclared identifier that threw a
+            // ReferenceError on every single open, which silently aborted
+            // this function right here (name/phone/about above had already
+            // rendered, masking it). blockedUsersSet is the real source of
+            // truth (see blockUser/unblockUser) for whether *I* have this
+            // person blocked.
+            const currentlyBlocked = blockedUsersSet.has(targetUser.id);
+            if (currentlyBlocked) {
                 textEl.innerText = 'Unblock User';
                 blockContainer.style.color = 'var(--text-muted)';
             } else {
                 textEl.innerText = 'Block User';
                 blockContainer.style.color = '#ef4444';
             }
-            
-            // Add click listener exactly once
+
             blockContainer.onclick = () => {
-                const btnBlock = document.getElementById('btn-block-user');
-                if (btnBlock) btnBlock.click();
-                setTimeout(() => openContactInfo(), 500); // refresh the panel state
+                if (!currentlyBlocked && !confirm('Are you sure you want to block this user?')) return;
+                toggleBlockUser(targetUser.id, currentlyBlocked).then(() => renderContactInfoPane(targetUser));
             };
         }
     }
 }
+
+/// Direct, chat-independent block/unblock — unlike the dropdown menu's
+/// btn-block-user (which only ever targets the current chat's 1:1 partner),
+/// this works for whoever's profile is open, including a group member or
+/// message sender who isn't part of a direct chat with the viewer at all.
+async function toggleBlockUser(userId, currentlyBlocked) {
+    try {
+        await fetch(`/api/users/${userId}/block`, {
+            method: currentlyBlocked ? 'DELETE' : 'POST',
+            headers: { 'Authorization': `Bearer ${window.API_TOKEN}`, 'Accept': 'application/json' }
+        });
+        if (currentlyBlocked) blockedUsersSet.delete(userId); else blockedUsersSet.add(userId);
+        fetchInbox();
+        updateActiveChatStatus();
+    } catch (e) {
+        console.error('Failed to toggle block', e);
+    }
+}
+
+/// WhatsApp-style "tap a name/avatar to view this person" — opens the same
+/// contact-info pane openContactInfo uses for the current chat's 1:1
+/// partner, but for *any* user id (a group member, or a message sender in
+/// a group chat). Prefers the already-loaded participant object (has
+/// everything needed, no round trip); falls back to GET /api/users/{id}
+/// for anyone not already loaded.
+async function openUserProfileById(userId) {
+    if (!userId || userId === window.APP_USER.id) return;
+
+    const paneInfo = document.getElementById('pane-contact-info');
+    const paneGroup = document.getElementById('pane-group-info');
+    const paneSearch = document.getElementById('pane-chat-search');
+    const sidebar = document.getElementById('right-sidebar');
+
+    paneSearch.style.display = 'none';
+    paneGroup.style.display = 'none';
+    paneInfo.style.display = 'flex';
+    sidebar.style.display = 'flex';
+    document.getElementById('right-sidebar-title').innerText = 'Contact info';
+
+    let targetUser = loadedChatData?.participants?.find(p => p.user_id === userId)?.user || null;
+    if (!targetUser) {
+        try {
+            const res = await fetch(`/api/users/${userId}`, {
+                headers: { 'Authorization': `Bearer ${window.API_TOKEN}`, 'Accept': 'application/json' }
+            });
+            const data = await res.json();
+            targetUser = data.user;
+        } catch (e) {
+            console.error('Failed to load profile', e);
+            return;
+        }
+    }
+    if (targetUser) renderContactInfoPane(targetUser);
+}
+window.openUserProfileById = openUserProfileById;
 
 function openChatSearch() {
     const paneInfo = document.getElementById('pane-contact-info');
@@ -2676,7 +2755,7 @@ function appendMessage(msg) {
     if (!isSent && currentChatType === 'group' && msg.sender) {
         const colors = ['#e53935', '#d81b60', '#8e24aa', '#3949ab', '#039be5', '#00897b', '#43a047', '#ff8f00', '#f4511e'];
         const color = colors[msg.sender.id.charCodeAt(0) % colors.length];
-        senderHTML = `<div class="sender-name" style="color: ${color};">${escapeHTML(getUserDisplayName(msg.sender))}</div>`;
+        senderHTML = `<div class="sender-name" style="color: ${color}; cursor: pointer;" onclick="openUserProfileById('${msg.sender.id}')">${escapeHTML(getUserDisplayName(msg.sender))}</div>`;
     }
     
     let textContent = msg.content ? escapeHTML(msg.content) : '';
@@ -5687,6 +5766,63 @@ document.getElementById('btn-reply-msg').addEventListener('click', () => {
     document.getElementById('message-context-menu').style.display = 'none';
     const msg = messagesById[currentContextMsgId];
     if (msg) showReplyPreview(msg);
+});
+
+/* --- Report message --- */
+let reportMessageId = null;
+let selectedReportReason = null;
+
+document.getElementById('btn-report-msg').addEventListener('click', () => {
+    document.getElementById('message-context-menu').style.display = 'none';
+    reportMessageId = currentContextMsgId;
+    selectedReportReason = null;
+    document.getElementById('report-details-input').style.display = 'none';
+    document.getElementById('report-details-input').value = '';
+    document.getElementById('btn-report-submit').style.display = 'none';
+    document.querySelectorAll('.report-reason-option').forEach(el => el.style.fontWeight = '400');
+    document.getElementById('report-message-modal').style.display = 'flex';
+});
+
+document.querySelectorAll('.report-reason-option').forEach(el => {
+    el.addEventListener('click', () => {
+        selectedReportReason = el.dataset.reason;
+        document.querySelectorAll('.report-reason-option').forEach(o => o.style.fontWeight = '400');
+        el.style.fontWeight = '700';
+        const detailsInput = document.getElementById('report-details-input');
+        const submitBtn = document.getElementById('btn-report-submit');
+        if (selectedReportReason === 'Other') {
+            detailsInput.style.display = 'block';
+            submitBtn.style.display = 'inline-block';
+        } else {
+            detailsInput.style.display = 'none';
+            submitBtn.style.display = 'inline-block';
+        }
+    });
+});
+
+document.getElementById('btn-report-cancel').addEventListener('click', () => {
+    document.getElementById('report-message-modal').style.display = 'none';
+});
+
+document.getElementById('btn-report-submit').addEventListener('click', async () => {
+    if (!reportMessageId || !selectedReportReason) return;
+    const details = document.getElementById('report-details-input').value.trim();
+    try {
+        await fetch(`/api/messages/${reportMessageId}/report`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.API_TOKEN}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ reason: selectedReportReason, details: details || undefined })
+        });
+        document.getElementById('report-message-modal').style.display = 'none';
+        alert('Message reported. Thank you.');
+    } catch (e) {
+        console.error('Failed to report message', e);
+        alert('Could not report message. Please try again.');
+    }
 });
 
 async function reactToMessage(messageId, emoji) {

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="description" content="SamChats — fast, secure real-time messaging. Chat with friends and groups from your browser.">
-    <title>SamChats</title>
+    <meta name="description" content="Samchat — fast, secure real-time messaging. Chat with friends and groups from your browser.">
+    <title>Samchat</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/css/intlTelInput.css">
 
     @vite(['resources/css/chat.css', 'resources/js/chat.js'])
@@ -822,6 +822,28 @@
         <div class="dropdown-item" id="btn-delete-msg-everyone" style="color: #ef4444; display: flex; align-items: center; gap: 8px; padding: 10px 15px; cursor: pointer;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15 4V3H9v1H4v2h1v13c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V6h1V4h-5zm2 15H7V6h10v13z"></path><path d="M9 8h2v9H9zm4 0h2v9h-2z"></path></svg>
             Delete for everyone
+        </div>
+        <div class="dropdown-item" id="btn-report-msg" style="color: #ef4444; display: flex; align-items: center; gap: 8px; padding: 10px 15px; cursor: pointer;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"></path></svg>
+            Report
+        </div>
+    </div>
+
+    <!-- Report message: reason picker -->
+    <div id="report-message-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3600; align-items: center; justify-content: center;">
+        <div style="background: var(--panel-sidebar); width: 380px; max-width: 90%; border-radius: var(--radius-lg); padding: 20px;">
+            <h3 style="margin: 0 0 12px 0;">Report this message</h3>
+            <div id="report-reason-list">
+                <div class="dropdown-item report-reason-option" data-reason="Spam" style="padding: 10px 4px; cursor: pointer; border-bottom: 1px solid var(--border-line);">Spam</div>
+                <div class="dropdown-item report-reason-option" data-reason="Inappropriate content" style="padding: 10px 4px; cursor: pointer; border-bottom: 1px solid var(--border-line);">Inappropriate content</div>
+                <div class="dropdown-item report-reason-option" data-reason="Harassment or bullying" style="padding: 10px 4px; cursor: pointer; border-bottom: 1px solid var(--border-line);">Harassment or bullying</div>
+                <div class="dropdown-item report-reason-option" data-reason="Other" style="padding: 10px 4px; cursor: pointer;">Other</div>
+            </div>
+            <textarea id="report-details-input" placeholder="Add details (optional)" style="display: none; width: 100%; margin-top: 10px; min-height: 70px; box-sizing: border-box; background: var(--chat-background); color: var(--text-primary); border: 1px solid var(--border-line); border-radius: var(--radius-md); padding: 8px;"></textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
+                <button type="button" id="btn-report-cancel" class="profile-btn-cancel">Cancel</button>
+                <button type="button" id="btn-report-submit" class="btn-primary" style="display: none; padding: 8px 16px; border-radius: 8px;">Submit</button>
+            </div>
         </div>
     </div>
 

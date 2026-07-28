@@ -353,6 +353,31 @@ class ChatController extends Controller
         return response()->json(['reactions' => $message->reactions]);
     }
 
+    public function reportMessage(Request $request, $message_id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:255',
+            'details' => 'nullable|string|max:2000',
+        ]);
+
+        $user = $request->user();
+        $message = Message::findOrFail($message_id);
+
+        // Ensure the caller is actually a participant of the message's chat
+        $user->chats()->findOrFail($message->chat_id);
+
+        // updateOrCreate (not create) so re-reporting the same message just
+        // refreshes the reason/details instead of piling up duplicate rows
+        // for the same complaint — see the unique(message_id, reporter_id)
+        // constraint on message_reports.
+        \App\Models\MessageReport::updateOrCreate(
+            ['message_id' => $message->id, 'reporter_id' => $user->id],
+            ['reason' => $request->reason, 'details' => $request->details]
+        );
+
+        return response()->json(['status' => 'success']);
+    }
+
     public function clearMessages(Request $request, $chat_id)
     {
         $user = $request->user();

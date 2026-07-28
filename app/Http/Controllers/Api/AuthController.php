@@ -5,11 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Services\OtpService;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
+    public function __construct(private OtpService $otp)
+    {
+    }
+
     public function register(Request $request)
     {
         // Normalize before the uniqueness check so two differently-formatted
@@ -51,7 +56,10 @@ class AuthController extends Controller
             return response()->json(['message' => 'Unauthorized. Number not registered.'], 403);
         }
 
-        // In production, integrate with Twilio/AWS SNS or Firebase Auth here
+        if ($this->otp->request($phone) === 'cooldown') {
+            return response()->json(['message' => 'Please wait before requesting another code.'], 429);
+        }
+
         Log::info("OTP requested for: " . $phone);
 
         return response()->json([
@@ -67,13 +75,12 @@ class AuthController extends Controller
             'otp' => 'required|string',
         ]);
 
-        // Mock verification (e.g., Firebase Auth usually does this on client,
-        // and we verify the Firebase Token here instead of raw OTP, but this matches prompt requirements)
-        if ($request->otp !== '123456') {
+        $phone = PhoneNumber::toE164($request->input('phone_number'));
+
+        if (!$this->otp->verify($phone, $request->input('otp'))) {
             return response()->json(['message' => 'Invalid OTP'], 401);
         }
 
-        $phone = PhoneNumber::toE164($request->input('phone_number'));
         $user = User::where('phone_number', $phone)->first();
 
         if (!$user) {

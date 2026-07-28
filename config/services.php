@@ -52,4 +52,27 @@ return [
         'api_token' => env('CLOUDFLARE_TURN_API_TOKEN'),
     ],
 
+    // MTN Ngage Enterprise Messaging (https://cpassmessaging.mtn.zm) — sends
+    // the real OTP SMS for phone verification. See App\Services\MtnSmsService.
+    // Requires an enterprise account (email/password, used to obtain a JWT)
+    // and a registered sender ID.
+    'mtn_sms' => [
+        'base_url' => env('MTN_SMS_BASE_URL', 'https://cpassmessaging.mtn.zm'),
+        'email' => env('MTN_SMS_EMAIL'),
+        'password' => env('MTN_SMS_PASSWORD'),
+        'sender_id' => env('MTN_SMS_SENDER_ID'),
+    ],
+
+    // A single fixed phone number + code that Play/App Store reviewers can
+    // sign in with, without a real SMS round trip to a device they don't
+    // control — see OtpService. test_phone must be a real, already
+    // registered user (create one via the normal /auth/register flow) so
+    // verifyOtp's user lookup still succeeds. This is the one deliberate
+    // exception to "every OTP is freshly generated and delivered by SMS";
+    // it never applies to any other number.
+    'play_review' => [
+        'test_phone' => env('PLAY_REVIEW_TEST_PHONE'),
+        'test_otp' => env('PLAY_REVIEW_TEST_OTP'),
+    ],
+
 ];

@@ -35,10 +35,46 @@ class UserController extends Controller
         return response()->json(['users' => $users]);
     }
 
-    public function show($user_id)
+    /**
+     * A user's viewable-by-anyone profile (the WhatsApp-style "tap a name/
+     * avatar to see this person" screen). Deliberately NOT `User::findOrFail`
+     * returned as-is — that would serialize every column on the model,
+     * including ones no other user should ever see (email,
+     * status_privacy_list — the literal list of user IDs this person has
+     * hidden/shown their status to — and is_blocked, a platform-level flag
+     * unrelated to whether the viewer personally blocked them). Whitelisted
+     * the same way search() already does.
+     */
+    public function show(Request $request, $user_id)
     {
         $user = User::findOrFail($user_id);
-        return response()->json(['user' => $user]);
+        $viewer = $request->user();
+
+        $savedName = $viewer->savedContacts()
+            ->where('contact_user_id', $user->id)
+            ->value('custom_name');
+
+        $sharedGroups = 0;
+        if ($viewer->id !== $user->id) {
+            $sharedGroups = \App\Models\Chat::where('chat_type', 'group')
+                ->whereHas('participants', fn ($q) => $q->where('user_id', $viewer->id))
+                ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
+                ->count();
+        }
+
+        return response()->json(['user' => [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'middle_name' => $user->middle_name,
+            'last_name' => $user->last_name,
+            'username' => $user->username,
+            'phone_number' => $user->phone_number,
+            'about_status' => $user->about_status,
+            'photo_url' => $user->photo_url,
+            'last_seen_at' => $user->last_seen_at,
+            'saved_name' => $savedName,
+            'shared_groups_count' => $sharedGroups,
+        ]]);
     }
 
     public function heartbeat(Request $request)

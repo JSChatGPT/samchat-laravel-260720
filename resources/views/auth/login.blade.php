@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="description" content="Log in to FireApp Web — fast, secure messaging from your browser.">
-    <title>FireApp Web - Login</title>
+    <meta name="description" content="Log in to Samchat Web — fast, secure messaging from your browser.">
+    <title>Samchat Web - Login</title>
     
     @vite(['resources/css/login.css', 'resources/js/auth.js'])
     
@@ -37,7 +37,7 @@
     </div>
 
     <div class="login-header">
-        <h2>Welcome to FireApp</h2>
+        <h2>Welcome to Samchat</h2>
         <p>Log in to access your chats on the web.</p>
     </div>
 

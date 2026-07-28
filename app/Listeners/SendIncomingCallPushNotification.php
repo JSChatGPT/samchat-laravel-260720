@@ -20,26 +20,38 @@ class SendIncomingCallPushNotification implements ShouldQueue
         $caller = $call->caller;
         $callerName = $this->displayName($caller);
         $title = ucfirst($call->call_type) . ' call';
-        $body = $callerName . ' is calling...';
+
+        $chat = $call->chat_id ? Chat::with('participants', 'group')->find($call->chat_id) : null;
+        $groupName = $chat?->group?->group_name;
+
+        // For a group call the native incoming-call UI (Android Telecom's
+        // caller-display-name — see SamChatConnection.setCallerDisplayName,
+        // fed straight from this payload's caller_name) only has one big
+        // identity string to show. WhatsApp leads with the group's name
+        // there, not the individual caller's, so a group call rings with
+        // "Group Name" up top and the actual caller mentioned in the body —
+        // otherwise the group calling anywhere except the live in-app UI
+        // (which already reads chat.group via CallRecord.title()) never
+        // reveals which group is calling at all.
+        $body = $groupName
+            ? "{$callerName} is calling in {$groupName}"
+            : $callerName . ' is calling...';
 
         $data = [
             'type' => 'incoming_call',
             'call_id' => $call->id,
             'call_type' => $call->call_type,
             'caller_id' => $call->caller_id,
-            'caller_name' => $callerName,
-            'caller_photo' => $caller->photo_url ?? '',
+            'caller_name' => $groupName ?? $callerName,
+            'caller_photo' => ($groupName ? $chat->group->group_image_url : null) ?? $caller->photo_url ?? '',
             'chat_id' => $call->chat_id ?? '',
         ];
 
         $recipientIds = [];
-        if ($call->chat_id) {
-            $chat = Chat::with('participants')->find($call->chat_id);
-            if ($chat) {
-                foreach ($chat->participants as $participant) {
-                    if ($participant->user_id !== $call->caller_id) {
-                        $recipientIds[] = $participant->user_id;
-                    }
+        if ($chat) {
+            foreach ($chat->participants as $participant) {
+                if ($participant->user_id !== $call->caller_id) {
+                    $recipientIds[] = $participant->user_id;
                 }
             }
         } elseif ($call->receiver_id) {
