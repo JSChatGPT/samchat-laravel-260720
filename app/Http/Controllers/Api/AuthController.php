@@ -68,21 +68,13 @@ class AuthController extends Controller
 
         Log::info("OTP requested for: " . $phone);
 
-        // Send email OTP if the user has an email and a code was generated.
-        $emailSent = false;
-        $emailHint = null;
-
-        if ($user->email && $result['code'] !== null) {
-            $this->emailOtp->send($user->email, $result['code']);
-            $emailSent = true;
-            $emailHint = $this->emailOtp->maskEmail($user->email);
-        }
+        $emailDelivery = $this->sendEmailOtpForUser($user, $result['code']);
 
         return response()->json([
             'message'      => 'OTP sent successfully',
             'phone_number' => $phone,
-            'email_sent'   => $emailSent,
-            'email_hint'   => $emailHint,
+            'email_sent'   => $emailDelivery['sent'],
+            'email_hint'   => $emailDelivery['hint'],
         ]);
     }
 
@@ -157,5 +149,26 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out successfully']);
+    }
+
+    /**
+     * Send the same login OTP over email when the account has an email address.
+     *
+     * @return array{sent: bool, hint: string|null}
+     */
+    private function sendEmailOtpForUser(User $user, ?string $code): array
+    {
+        $email = trim((string) $user->email);
+
+        if ($email === '' || $code === null) {
+            return ['sent' => false, 'hint' => null];
+        }
+
+        $this->emailOtp->send($email, $code);
+
+        return [
+            'sent' => true,
+            'hint' => $this->emailOtp->maskEmail($email),
+        ];
     }
 }
