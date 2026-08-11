@@ -5,15 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Services\EmailOtpService;
 use App\Services\OtpService;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
-    public function __construct(private OtpService $otp)
-    {
-    }
+    public function __construct(
+        private OtpService $otp,
+        private EmailOtpService $emailOtp,
+    ) {}
 
     public function register(Request $request)
     {
@@ -23,12 +25,12 @@ class AuthController extends Controller
         $request->merge(['phone_number' => PhoneNumber::toE164($request->input('phone_number', ''))]);
 
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'username' => 'required|string|alpha_dash|unique:users,username|max:255',
+            'first_name'   => 'required|string|max:255',
+            'middle_name'  => 'nullable|string|max:255',
+            'last_name'    => 'required|string|max:255',
+            'username'     => 'required|string|alpha_dash|unique:users,username|max:255',
             'phone_number' => 'required|string|unique:users,phone_number|max:255',
-            'email' => 'nullable|email|unique:users,email|max:255',
+            'email'        => 'nullable|email|unique:users,email|max:255',
         ]);
 
         $user = User::create($validated);
@@ -40,9 +42,10 @@ class AuthController extends Controller
         // For simplicity, we just return success so the client can move to OTP step.
         return response()->json([
             'message' => 'Registration successful',
-            'user' => $user
+            'user'    => $user,
         ], 201);
     }
+
     public function requestOtp(Request $request)
     {
         $request->validate([
@@ -51,20 +54,35 @@ class AuthController extends Controller
 
         $phone = PhoneNumber::toE164($request->input('phone_number'));
 
-        // Check if user exists before sending OTP
-        if (!User::where('phone_number', $phone)->exists()) {
+        // Check if user exists before sending OTP.
+        $user = User::where('phone_number', $phone)->first();
+        if (!$user) {
             return response()->json(['message' => 'Unauthorized. Number not registered.'], 403);
         }
 
-        if ($this->otp->request($phone) === 'cooldown') {
+        $result = $this->otp->request($phone);
+
+        if ($result['status'] === 'cooldown') {
             return response()->json(['message' => 'Please wait before requesting another code.'], 429);
         }
 
         Log::info("OTP requested for: " . $phone);
 
+        // Send email OTP if the user has an email and a code was generated.
+        $emailSent = false;
+        $emailHint = null;
+
+        if ($user->email && $result['code'] !== null) {
+            $this->emailOtp->send($user->email, $result['code']);
+            $emailSent = true;
+            $emailHint = $this->emailOtp->maskEmail($user->email);
+        }
+
         return response()->json([
-            'message' => 'OTP sent successfully',
-            'phone_number' => $phone
+            'message'      => 'OTP sent successfully',
+            'phone_number' => $phone,
+            'email_sent'   => $emailSent,
+            'email_hint'   => $emailHint,
         ]);
     }
 
@@ -72,7 +90,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'phone_number' => 'required|string',
-            'otp' => 'required|string',
+            'otp'          => 'required|string',
         ]);
 
         $phone = PhoneNumber::toE164($request->input('phone_number'));
@@ -95,30 +113,30 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Authenticated successfully',
-            'user' => $user,
-            'token' => $token,
+            'user'    => $user,
+            'token'   => $token,
         ]);
     }
 
     public function updateProfile(Request $request)
     {
         $request->validate([
-            'first_name' => 'sometimes|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name' => 'sometimes|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'username' => 'sometimes|string|alpha_dash|max:255|unique:users,username,' . $request->user()->id,
+            'first_name'   => 'sometimes|string|max:255',
+            'middle_name'  => 'nullable|string|max:255',
+            'last_name'    => 'sometimes|string|max:255',
+            'email'        => 'nullable|email|max:255',
+            'username'     => 'sometimes|string|alpha_dash|max:255|unique:users,username,' . $request->user()->id,
             'about_status' => 'nullable|string|max:255',
-            'photo' => 'nullable|image|max:10240', // 10MB max for photo
+            'photo'        => 'nullable|image|max:10240', // 10MB max for photo
         ], [
             'username.alpha_dash' => 'The username must not contain spaces.'
         ]);
 
         $user = $request->user();
-        
+
         $updateData = $request->only([
-            'first_name', 'middle_name', 'last_name', 
-            'email', 'username', 'about_status'
+            'first_name', 'middle_name', 'last_name',
+            'email', 'username', 'about_status',
         ]);
 
         if ($request->hasFile('photo')) {
@@ -130,7 +148,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully',
-            'user' => $user,
+            'user'    => $user,
         ]);
     }
 

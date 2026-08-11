@@ -74,7 +74,7 @@
     "isEntry": true
   },
   "resources/css/login.css": {
-    "file": "assets/login-CeGFbgvc.css",
+    "file": "assets/login-DOUExNpk.css",
     "name": "login",
     "names": [
       "login.css"
@@ -92,13 +92,13 @@
     ]
   },
   "resources/js/auth.js": {
-    "file": "assets/auth-CTgNBcSi.js",
+    "file": "assets/auth-B6HUcBkE.js",
     "name": "auth",
     "src": "resources/js/auth.js",
     "isEntry": true
   },
   "resources/js/chat.js": {
-    "file": "assets/chat-BCanZ8iC.js",
+    "file": "assets/chat-CnHxRW8q.js",
     "name": "chat",
     "src": "resources/js/chat.js",
     "isEntry": true,

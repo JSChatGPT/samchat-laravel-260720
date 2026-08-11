@@ -58,9 +58,13 @@
             <label for="otp_code">Enter OTP</label>
             <input type="text" id="otp_code" class="form-input" placeholder="Enter code" maxlength="6">
             <div id="error-otp" class="error-msg"></div>
-            <p class="otp-hint">We sent a 6-digit code to your phone via SMS.</p>
+            <p class="otp-hint" id="otp-hint-text">We sent a 6-digit code to your phone via SMS.</p>
         </div>
         <button id="btn-verify-otp" class="btn-primary">Verify & Login</button>
+        <div class="otp-actions">
+            <a href="#" id="link-resend-otp" class="otp-resend-link" style="display:none;">Resend code</a>
+            <span id="otp-resend-countdown" class="otp-countdown"></span>
+        </div>
         <p class="auth-switch"><a href="#" id="link-back-login-otp">Back to Login</a></p>
     </div>
 

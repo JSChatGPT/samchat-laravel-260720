@@ -447,3 +447,44 @@ body {
         font-size: 1.4rem;
     }
 }
+
+/* ─── OTP hint & resend ─── */
+.otp-hint {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    line-height: 1.5;
+}
+
+.otp-hint strong {
+    color: var(--primary-accent);
+    font-weight: 600;
+}
+
+.otp-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    min-height: 24px;
+}
+
+.otp-resend-link {
+    font-size: 0.85rem;
+    color: var(--primary-accent);
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.otp-resend-link:hover {
+    opacity: 0.75;
+    text-decoration: underline;
+}
+
+.otp-countdown {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+

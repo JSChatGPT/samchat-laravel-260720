@@ -30,19 +30,24 @@ class OtpService
     }
 
     /**
-     * @return string 'sent' or 'cooldown' (asked again too soon).
+     * Request an OTP for the given phone number.
+     *
+     * @return array{status: string, code: string|null}
+     *   'status' is 'sent' or 'cooldown' (asked again too soon).
+     *   'code'   is the plain-text code that was sent (null on cooldown or
+     *            for the review-test phone, where no code is generated).
      */
-    public function request(string $phoneE164): string
+    public function request(string $phoneE164): array
     {
         if ($this->isReviewTestPhone($phoneE164)) {
             // Nothing to send — the fixed test code already "works" without
             // a round trip, see verify().
-            return 'sent';
+            return ['status' => 'sent', 'code' => null];
         }
 
         $cooldownKey = "otp_cooldown:{$phoneE164}";
         if (Cache::has($cooldownKey)) {
-            return 'cooldown';
+            return ['status' => 'cooldown', 'code' => null];
         }
         Cache::put($cooldownKey, true, now()->addSeconds(self::RESEND_COOLDOWN_SECONDS));
 
@@ -52,7 +57,7 @@ class OtpService
 
         $this->sms->sendOtp($phoneE164, $code);
 
-        return 'sent';
+        return ['status' => 'sent', 'code' => $code];
     }
 
     public function verify(string $phoneE164, string $submittedCode): bool
