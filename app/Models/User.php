@@ -32,12 +32,14 @@ class User extends Authenticatable
         'last_seen_at',
         'status_privacy',
         'status_privacy_list',
+        'is_admin',
     ];
 
     protected $casts = [
         'is_blocked' => 'boolean',
         'last_seen_at' => 'datetime',
         'status_privacy_list' => 'array',
+        'is_admin' => 'boolean',
     ];
 
     public function newUniqueId()

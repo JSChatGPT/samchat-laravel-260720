@@ -13,6 +13,9 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::get('/sampay/callback', [App\Http\Controllers\Api\SampayController::class, 'callback']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    // External API for 3rd parties
+    Route::post('/v1/messages', [App\Http\Controllers\Api\ExternalMessageController::class, 'sendMessage']);
+    
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     Route::get('/user', function (Request $request) {

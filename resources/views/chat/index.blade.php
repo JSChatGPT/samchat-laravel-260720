@@ -6,11 +6,22 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="description" content="Samchat — fast, secure real-time messaging. Chat with friends and groups from your browser.">
     <title>Samchat</title>
+    <link rel="icon" type="image/png" href="/images/samchat_logo.png">
+    <link rel="apple-touch-icon" href="/images/samchat_logo.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/css/intlTelInput.css">
 
     @vite(['resources/css/chat.css', 'resources/js/chat.js'])
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.18.1/index.js"></script>
+    <script src="https://unpkg.com/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/js/intlTelInput.min.js"></script>
+    <style>
+        img.emoji {
+            height: 1.2em;
+            width: 1.2em;
+            margin: 0 .05em 0 .1em;
+            vertical-align: -0.1em;
+        }
+    </style>
 </head>
 <body>
 
@@ -61,6 +72,9 @@
                 <div class="dropdown-item" onclick="event.stopPropagation(); openProfileModal(); document.getElementById('sidebar-dropdown').classList.remove('active');">Profile</div>
                 <div class="dropdown-item" onclick="event.stopPropagation(); openSettingsModal(); document.getElementById('sidebar-dropdown').classList.remove('active');">Settings</div>
                 <div class="dropdown-item" id="btn-open-payments">Payments</div>
+                @if(auth()->user()->is_admin)
+                <div class="dropdown-item" onclick="window.location.href='/admin'">Admin Dashboard</div>
+                @endif
                 <div class="dropdown-item" onclick="event.stopPropagation(); document.getElementById('logout-form').submit();">Log out</div>
             </div>
         </div>
@@ -455,7 +469,7 @@
                 </svg>
             </div>
             <div class="composer-input-wrapper">
-                <input type="text" id="message-input" class="composer-input" placeholder="Type a message">
+                <textarea id="message-input" class="composer-input" placeholder="Type a message" rows="1" style="resize: none; overflow: hidden; padding-top: 14px; padding-bottom: 14px; min-height: 24px; max-height: 150px; font-family: inherit; font-size: inherit; line-height: 20px; box-sizing: content-box;"></textarea>
             </div>
             <div class="composer-icons" id="btn-mic" style="cursor:pointer; position: relative;">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M11.999 14.942c2.001 0 3.531-1.53 3.531-3.531V4.35c0-2.001-1.53-3.531-3.531-3.531S8.469 2.35 8.469 4.35v7.061c0 2.001 1.53 3.531 3.53 3.531zm6.238-3.53c0 3.531-2.942 6.002-6.237 6.002s-6.237-2.471-6.237-6.002H3.761c0 4.001 3.178 7.297 7.061 7.885v3.884h2.354v-3.884c3.884-.588 7.061-3.884 7.061-7.885h-2.001z"></path></svg>
@@ -807,6 +821,10 @@
         <div class="dropdown-item" id="btn-reply-msg" style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; cursor: pointer;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"></path></svg>
             Reply
+        </div>
+        <div class="dropdown-item" id="btn-copy-msg" style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; cursor: pointer;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>
+            Copy
         </div>
         <div class="dropdown-item" id="btn-share-msg-whatsapp" style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; cursor: pointer;">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2z"></path></svg>

@@ -16,7 +16,8 @@ Everything the web chat client (`resources/js/chat.js`) does is available here â
 8. [Statuses (stories)](#8-statuses-stories)
 9. [Sampay in-chat payments](#9-sampay-in-chat-payments)
 10. [Push notifications](#10-push-notifications)
-11. [Known limitations / pre-launch checklist](#11-known-limitations--pre-launch-checklist)
+11. [External Messaging API](#11-external-messaging-api)
+12. [Known limitations / pre-launch checklist](#12-known-limitations--pre-launch-checklist)
 
 ---
 
@@ -418,7 +419,50 @@ If FCM reports a token as invalid/unregistered (app uninstalled, token rotated, 
 
 ---
 
-## 11. Known limitations / pre-launch checklist
+## 11. External Messaging API
+
+For system integrators, businesses, or server-to-server messaging (e.g. sending OTPs, alerts), SamChats provides a WhatsApp Cloud API-style endpoint.
+
+### Authentication
+You must first generate a **Personal Access Token**. 
+If you are an admin, you can log in to the web app, navigate to the **Admin Dashboard** (`/admin/tokens`), and generate one. Use this token as a Bearer token in the `Authorization` header.
+
+### `POST /v1/messages`
+Send a direct text message to a user by their phone number. The message will appear to come from the user account that owns the token.
+
+**Request Body**
+```json
+{
+  "to": "+260968793843",
+  "type": "text",
+  "text": {
+    "body": "Your OTP code is 123456"
+  }
+}
+```
+
+**Response (201 Created)**
+```json
+{
+  "messaging_product": "samchats",
+  "contacts": [
+    {
+      "input": "+260968793843",
+      "wa_id": "260968793843"
+    }
+  ],
+  "messages": [
+    {
+      "id": "9b12a3f8-4e56-..."
+    }
+  ]
+}
+```
+If the recipient phone number is not registered, you will receive a `400 Bad Request` with an `invalid_request_error`.
+
+---
+
+## 12. Known limitations / pre-launch checklist
 
 Things that are real gaps or infra decisions, called out explicitly rather than silently worked around:
 

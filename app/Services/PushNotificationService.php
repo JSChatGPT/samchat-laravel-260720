@@ -58,7 +58,16 @@ class PushNotificationService
             // and especially incoming calls all need to arrive
             // immediately — so force high priority explicitly rather than
             // relying on the SDK default.
-            ->withAndroidConfig(AndroidConfig::new()->withHighMessagePriority());
+            ->withAndroidConfig(AndroidConfig::new()->withHighMessagePriority())
+            ->withApnsConfig(
+                \Kreait\Firebase\Messaging\ApnsConfig::new()
+                    ->withApsField('content-available', 1)
+                    // The client handles all presentation locally, but APNs
+                    // requires *some* mutable-content or alert for the
+                    // Notification Service Extension to reliably run if the
+                    // app is fully killed.
+                    ->withApsField('mutable-content', 1)
+            );
 
         try {
             $report = Firebase::messaging()->sendMulticast($message, $tokens);

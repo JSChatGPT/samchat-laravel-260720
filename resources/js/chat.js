@@ -756,8 +756,13 @@ document.addEventListener('DOMContentLoaded', () => {
         emojiPicker.style.display = emojiPicker.style.display === 'none' ? 'block' : 'none';
     });
     emojiPicker.addEventListener('emoji-click', event => {
-        msgInput.value += event.detail.unicode;
+        const start = msgInput.selectionStart;
+        const end = msgInput.selectionEnd;
+        const text = msgInput.value;
+        msgInput.value = text.substring(0, start) + event.detail.unicode + text.substring(end);
+        msgInput.selectionStart = msgInput.selectionEnd = start + event.detail.unicode.length;
         msgInput.dispatchEvent(new Event('input')); // trigger toggle
+        msgInput.focus();
     });
 
     // Sticker Picker — curated big-emoji tray (no sticker art assets exist;
@@ -971,6 +976,31 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAttachmentPreview();
         e.target.value = ''; // reset input
     };
+    
+    document.getElementById('message-input').addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        let pastedFiles = [];
+        for (let index in items) {
+            let item = items[index];
+            if (item.kind === 'file') {
+                let file = item.getAsFile();
+                if (file) pastedFiles.push(file);
+            }
+        }
+        
+        if (pastedFiles.length > 0) {
+            e.preventDefault();
+            pastedFiles.forEach(file => {
+                let type = 'document';
+                if (file.type.startsWith('image/')) type = 'image';
+                else if (file.type.startsWith('video/')) type = 'video';
+                pendingAttachments.push({ file, type });
+            });
+            activePreviewIndex = pendingAttachments.length - pastedFiles.length;
+            document.getElementById('attachment-preview-panel').style.display = 'flex';
+            renderAttachmentPreview();
+        }
+    });
     
     document.getElementById('btn-close-preview').addEventListener('click', () => {
         pendingAttachments = [];
@@ -5914,6 +5944,18 @@ function currentContextMsgText() {
     return row?.querySelector('.message-content')?.textContent?.trim() || '';
 }
 
+document.getElementById('btn-copy-msg').addEventListener('click', async () => {
+    const text = currentContextMsgText();
+    document.getElementById('message-context-menu').style.display = 'none';
+    if (!text) return;
+    try {
+        await navigator.clipboard.writeText(text);
+        alert('Message copied to clipboard');
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+    }
+});
+
 document.getElementById('btn-share-msg-whatsapp').addEventListener('click', () => {
     const text = currentContextMsgText();
     document.getElementById('message-context-menu').style.display = 'none';
@@ -6238,5 +6280,35 @@ document.getElementById('btn-submit-add-participants')?.addEventListener('click'
     } finally {
         btn.innerText = originalText;
         btn.disabled = false;
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages && typeof twemoji !== 'undefined') {
+        const observer = new MutationObserver((mutations) => {
+            let shouldParse = false;
+            mutations.forEach(m => {
+                if (m.addedNodes.length > 0 || m.type === 'characterData' || (m.type === 'childList' && m.target.classList && m.target.classList.contains('message-reactions'))) {
+                    shouldParse = true;
+                }
+            });
+            if (shouldParse) {
+                twemoji.parse(chatMessages);
+            }
+        });
+        observer.observe(chatMessages, { childList: true, subtree: true, characterData: true });
+        
+        // Initial parse
+        twemoji.parse(chatMessages);
+    }
+    
+    // Auto-resize the composer
+    const msgInput = document.getElementById('message-input');
+    if (msgInput) {
+        msgInput.addEventListener('input', function() {
+            this.style.height = '24px';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
     }
 });
