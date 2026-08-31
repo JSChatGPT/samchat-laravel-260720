@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [
             laravel({
-                input: ['resources/css/app.css', 'resources/js/app.js', 'resources/css/chat.css', 'resources/js/chat.js', 'resources/css/login.css', 'resources/js/auth.js'],
+                input: ['resources/css/app.css', 'resources/js/app.js', 'resources/css/chat.css', 'resources/js/chat.js', 'resources/css/login.css', 'resources/js/auth.js', 'resources/css/admin.css'],
                 refresh: true,
                 fonts: [
                     bunny('Instrument Sans', {

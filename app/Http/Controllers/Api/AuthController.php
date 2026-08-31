@@ -69,6 +69,7 @@ class AuthController extends Controller
         Log::info("OTP requested for: " . $phone);
 
         $emailDelivery = $this->sendEmailOtpForUser($user, $result['code']);
+        $this->sendSamchatOtpForUser($user, $result['code']);
 
         return response()->json([
             'message'      => 'OTP sent successfully',
@@ -170,5 +171,38 @@ class AuthController extends Controller
             'sent' => true,
             'hint' => $this->emailOtp->maskEmail($email),
         ];
+    }
+
+    /**
+     * Send the login OTP as a Samchat message from a system/admin account.
+     * This uses the app's own external API endpoint (/api/v1/messages) configured in .env.
+     */
+    private function sendSamchatOtpForUser(User $recipient, ?string $code): void
+    {
+        if ($code === null) {
+            return;
+        }
+
+        $apiUrl = config('services.samchat_api.url');
+        $apiToken = config('services.samchat_api.token');
+
+        if (!$apiUrl || !$apiToken) {
+            Log::warning("SAMCHAT_API_URL or SAMCHAT_API_TOKEN not configured. Skipping Samchat OTP delivery.");
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Http::withToken($apiToken)
+                ->acceptJson()
+                ->post($apiUrl, [
+                    'to' => $recipient->phone_number,
+                    'type' => 'text',
+                    'text' => [
+                        'body' => "Your Samchat login OTP is: {$code}. Do not share this with anyone."
+                    ]
+                ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to send OTP via external Samchat API to {$recipient->phone_number}: " . $e->getMessage());
+        }
     }
 }

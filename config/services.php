@@ -90,4 +90,9 @@ return [
         'test_otp' => env('PLAY_REVIEW_TEST_OTP'),
     ],
 
+    'samchat_api' => [
+        'url' => env('SAMCHAT_API_URL'),
+        'token' => env('SAMCHAT_API_TOKEN'),
+    ],
+
 ];
