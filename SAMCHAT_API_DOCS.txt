@@ -1,0 +1,79 @@
+=========================================================
+          SAMCHAT EXTERNAL MESSAGING API
+=========================================================
+
+The Samchat External Messaging API allows third-party systems or backend servers to send direct messages to Samchat users automatically. It works similarly to the WhatsApp Cloud API.
+
+---------------------------------------------------------
+1. AUTHENTICATION
+---------------------------------------------------------
+All requests must be authenticated using a Personal Access Token. 
+
+To generate a token:
+1. Log into the Samchat web interface using an Admin account.
+2. Open the left sidebar menu and click "Admin Dashboard".
+3. Navigate to the "API Tokens" page in the sidebar.
+4. Enter a name for your token (e.g., "OTP Server") and click Generate.
+5. Copy the generated token immediately (you won't be able to see it again).
+
+Include this token in the headers of your API requests:
+Authorization: Bearer YOUR_GENERATED_TOKEN
+
+---------------------------------------------------------
+2. SEND A MESSAGE ENDPOINT
+---------------------------------------------------------
+URL:    POST https://samchat.sampay.biz/api/v1/messages
+Headers: 
+  - Content-Type: application/json
+  - Accept: application/json
+  - Authorization: Bearer YOUR_GENERATED_TOKEN
+
+REQUEST BODY (JSON):
+{
+  "to": "+260972927679",
+  "type": "text",
+  "text": {
+    "body": "Hello this is a system message or OTP!"
+  }
+}
+
+PARAMETERS:
+- "to" (string, required): The recipient's phone number. Must be a registered Samchat user. It is recommended to use the E.164 format (e.g., +260972927679).
+- "type" (string, required): Must be "text".
+- "text.body" (string, required): The actual message content to send to the user.
+
+---------------------------------------------------------
+3. RESPONSES
+---------------------------------------------------------
+
+SUCCESS RESPONSE (HTTP 201 Created)
+{
+  "messaging_product": "samchats",
+  "contacts": [
+    {
+      "input": "+260972927679",
+      "wa_id": "260972927679"
+    }
+  ],
+  "messages": [
+    {
+      "id": "9b12a3f8-4e56-4c91-95c5-1234567890ab"
+    }
+  ]
+}
+
+ERROR RESPONSES
+- HTTP 400 Bad Request: Usually means the recipient phone number is not registered on Samchat or the request body is malformed.
+- HTTP 401 Unauthorized: Your token is invalid or missing. Ensure you don't have stray spaces or newlines in your Authorization header.
+- HTTP 403 Forbidden: The token owner (the Admin) has been blocked by the recipient, or the chat is blocked.
+
+---------------------------------------------------------
+4. EXAMPLE: cURL
+---------------------------------------------------------
+curl -s -X POST \
+  -H "Authorization: Bearer 100|m4bic1ZZZBcfai7IjKA0dO0h3YhbI4UWv4xsFupGb8ae2c8a" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"to": "+260972927679", "type": "text", "text": {"body": "Your verification code is 123456"}}' \
+  https://samchat.sampay.biz/api/v1/messages
+
